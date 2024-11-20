@@ -1,12 +1,9 @@
 'use client'
-import { Inter } from 'next/font/google'
 import { useState, useEffect } from 'react'
 import { chatCompletion } from '@/lib/api'
 import type { Chat, Message } from '@/types/chat'
 import { MarkdownContent } from '@/components/MarkdownContent'
 import { StatusIndicator } from '@/components/StatusIndicator'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   const [chats, setChats] = useState<Chat[]>([])

@@ -4,7 +4,7 @@ declare module 'react-markdown' {
   interface ReactMarkdownProps {
     children: string
     className?: string
-    components?: Record<string, React.ComponentType<any>>
+    components?: Record<string, React.ComponentType<unknown>>
   }
   
   const ReactMarkdown: React.FC<ReactMarkdownProps>

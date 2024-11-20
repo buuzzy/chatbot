@@ -12,23 +12,26 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
     let codeContent = ''
     let key = 0
 
-    for (let line of lines) {
+    for (const line of lines) {
       // 处理标题
       if (line.startsWith('#')) {
-        const level = line.match(/^#+/)[0].length
-        const title = line.replace(/^#+\s/, '')
-        formattedLines.push(
-          <h1 
-            key={key++}
-            className={`font-bold ${
-              level === 1 ? 'text-xl mt-4 mb-2' :
-              level === 2 ? 'text-lg mt-3 mb-2' :
-              'text-base mt-2 mb-1'
-            }`}
-          >
-            {title}
-          </h1>
-        )
+        const match = line.match(/^#+/)
+        if (match) {
+          const level = match[0].length
+          const title = line.replace(/^#+\s/, '')
+          formattedLines.push(
+            <h1 
+              key={key++}
+              className={`font-bold ${
+                level === 1 ? 'text-xl mt-4 mb-2' :
+                level === 2 ? 'text-lg mt-3 mb-2' :
+                'text-base mt-2 mb-1'
+              }`}
+            >
+              {title}
+            </h1>
+          )
+        }
         continue
       }
 
@@ -65,12 +68,15 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
 
       // 处理数字列表
       if (line.match(/^\d+\.\s/)) {
-        formattedLines.push(
-          <div key={key++} className="flex gap-2 my-1">
-            <span className="text-gray-500">{line.match(/^\d+/)[0]}.</span>
-            <span>{line.replace(/^\d+\.\s/, '')}</span>
-          </div>
-        )
+        const match = line.match(/^\d+/)
+        if (match) {
+          formattedLines.push(
+            <div key={key++} className="flex gap-2 my-1">
+              <span className="text-gray-500">{match[0]}.</span>
+              <span>{line.replace(/^\d+\.\s/, '')}</span>
+            </div>
+          )
+        }
         continue
       }
 
