@@ -118,14 +118,25 @@ export default function Home() {
     } catch (error) {
       console.error('Chat error:', error)
       
-      // 区分错误类型
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           setError({ type: 'error', message: '响应超时，请重试' })
         } else if (!navigator.onLine || error.message.includes('network')) {
           setError({ type: 'network-error' })
         } else {
-          setError({ type: 'error', message: '服务器响应错误，请稍后重试' })
+          // 尝试解析错误响应
+          try {
+            const errorData = JSON.parse(error.message)
+            setError({ 
+              type: 'error', 
+              message: `服务器响应错误: ${errorData.details || errorData.error || '未知错误'}`
+            })
+          } catch {
+            setError({ 
+              type: 'error', 
+              message: `服务器响应错误: ${error.message}`
+            })
+          }
         }
       }
     } finally {

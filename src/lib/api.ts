@@ -11,14 +11,24 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ messages }),
-      signal
+      signal,
+      timeout: 25000
     })
     
+    const data = await response.json()
+    
     if (!response.ok) {
-      throw new Error('API request failed')
+      if (response.status === 504) {
+        throw new Error('API request timeout')
+      }
+      throw new Error(JSON.stringify(data))
     }
     
-    return await response.json()
+    if (data.error) {
+      throw new Error(JSON.stringify(data))
+    }
+    
+    return data
   } catch (error) {
     console.error('API Error:', error)
     throw error
