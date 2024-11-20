@@ -12,35 +12,7 @@ const openai = new OpenAI({
   baseURL: 'https://api.deepseek.com'
 })
 
-const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式：
-
-# 主要结论
-简要总结核心观点
-
-## 详细分析
-1. 要点一
-   - 细节说明
-   - 补充信息
-
-2. 要点二
-   - 细节说明
-   - 补充信息
-
-## 总结建议
-- 关键建议一
-- 关键建议二
-
-如果是技术问题，请添加：
-\`\`\`language
-示例代码（如果适用）
-\`\`\`
-
-请确保回答：
-- 层次分明，使用标题分级
-- 重点突出，条理清晰
-- 语言简洁，表达准确
-- 适当使用列表和代码块
-`
+const SYSTEM_PROMPT = `请简短回答。`
 
 export async function POST(req: Request) {
   const controller = new AbortController()
@@ -74,13 +46,32 @@ export async function POST(req: Request) {
     ]
     
     console.log('Calling Deepseek API...')
+    const MAX_RETRIES = 2
+    let retryCount = 0
+
+    async function makeRequest() {
+      try {
+        return await openai.chat.completions.create({
+          model: 'deepseek-chat',
+          messages: formattedMessages,
+          temperature: 0.3,
+          max_tokens: 800,
+          presence_penalty: 0,
+          frequency_penalty: 0,
+          stream: false
+        })
+      } catch (error) {
+        if (retryCount < MAX_RETRIES) {
+          retryCount++
+          console.log(`Retrying request (${retryCount}/${MAX_RETRIES})...`)
+          return makeRequest()
+        }
+        throw error
+      }
+    }
+
     const response = await Promise.race([
-      openai.chat.completions.create({
-        model: 'deepseek-chat',
-        messages: formattedMessages,
-        temperature: 0.7,
-        max_tokens: 2000
-      }),
+      makeRequest(),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('API Timeout')), 20000)
       )
