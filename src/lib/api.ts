@@ -5,8 +5,12 @@ export type ChatMessage = {
 
 export async function chatCompletion(messages: ChatMessage[], signal?: AbortSignal) {
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 25000)
+    const timeoutId = setTimeout(() => {
+      if (!signal?.aborted) {
+        const controller = new AbortController()
+        controller.abort()
+      }
+    }, 25000)
 
     try {
       const response = await fetch('/api/chat', {
@@ -15,7 +19,7 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ messages }),
-        signal: controller.signal
+        signal
       })
       
       const data = await response.json()
