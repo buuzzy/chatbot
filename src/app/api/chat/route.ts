@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
+import type { ChatCompletion } from 'openai/resources'
 
 const apiKey = process.env.OPENAI_API_KEY
 
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     console.log('Calling Deepseek API...')
     
     // 使用 Promise.race 来处理超时
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Request timeout')), 8000)
     })
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
       frequency_penalty: 0
     })
 
-    const response = await Promise.race([responsePromise, timeoutPromise])
+    const response = await Promise.race([responsePromise, timeoutPromise]) as ChatCompletion
     
     if (!response.choices[0].message) {
       throw new Error('No response from API')
