@@ -29,7 +29,7 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       let data
       try {
         data = await response.json()
-      } catch (e) {
+      } catch (_e) {
         throw new Error('PARSE_ERROR')
       }
       
