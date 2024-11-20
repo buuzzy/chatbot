@@ -12,28 +12,14 @@ const openai = new OpenAI({
   baseURL: 'https://api.deepseek.com'
 })
 
-const SYSTEM_PROMPT = `请简短回答。`
+const SYSTEM_PROMPT = `请简短回答，控制在200字以内。`
 
 export async function POST(req: Request) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 25000)
-
   try {
-    console.log('API Key status:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing')
-    
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('Missing API key in environment')
-      return NextResponse.json(
-        { error: 'API key not configured' },
-        { status: 500 }
-      )
-    }
-
     const { messages } = await req.json()
     console.log('Received messages:', messages.length)
     
     if (!messages || !Array.isArray(messages)) {
-      console.error('Invalid messages format')
       return NextResponse.json(
         { error: 'Invalid request format' },
         { status: 400 }
@@ -46,63 +32,30 @@ export async function POST(req: Request) {
     ]
     
     console.log('Calling Deepseek API...')
-    const MAX_RETRIES = 2
-    let retryCount = 0
-
-    async function makeRequest() {
-      try {
-        return await openai.chat.completions.create({
-          model: 'deepseek-chat',
-          messages: formattedMessages,
-          temperature: 0.3,
-          max_tokens: 800,
-          presence_penalty: 0,
-          frequency_penalty: 0,
-          stream: false
-        })
-      } catch (error) {
-        if (retryCount < MAX_RETRIES) {
-          retryCount++
-          console.log(`Retrying request (${retryCount}/${MAX_RETRIES})...`)
-          return makeRequest()
-        }
-        throw error
-      }
-    }
-
-    const response = await Promise.race([
-      makeRequest(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('API Timeout')), 20000)
-      )
-    ]) as { choices: Array<{ message: { content: string } }> }
-    
-    clearTimeout(timeoutId)
+    const response = await openai.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: formattedMessages,
+      temperature: 0.3,     // 降低创造性以加快响应
+      max_tokens: 400,      // 限制回答长度
+      presence_penalty: 0,
+      frequency_penalty: 0,
+      timeout: 8000         // 8秒超时
+    })
     
     if (!response.choices[0].message) {
-      console.error('No message in API response')
       throw new Error('No response from API')
     }
 
     console.log('API call successful')
     return NextResponse.json(response.choices[0].message)
   } catch (error) {
-    clearTimeout(timeoutId)
-    console.error('Detailed API Error:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    })
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('abort')
-    
+    console.error('API Error:', error)
     return NextResponse.json(
       { 
-        error: isTimeout ? 'API request timeout' : 'Failed to get response',
-        details: errorMessage
+        error: 'Failed to get response',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: isTimeout ? 504 : 500 }
+      { status: 500 }
     )
   }
 }
