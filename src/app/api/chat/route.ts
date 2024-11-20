@@ -9,8 +9,7 @@ if (!apiKey) {
 
 const openai = new OpenAI({
   apiKey: apiKey || 'sk-dc76621f0d1c4f9cb45064cf944c1455',
-  baseURL: 'https://api.deepseek.com',
-  timeout: 15000,
+  baseURL: 'https://api.deepseek.com'
 })
 
 const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式：
@@ -80,13 +79,12 @@ export async function POST(req: Request) {
         model: 'deepseek-chat',
         messages: formattedMessages,
         temperature: 0.7,
-        max_tokens: 2000,
-        timeout: 20000,
+        max_tokens: 2000
       }),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('API Timeout')), 20000)
       )
-    ])
+    ]) as { choices: Array<{ message: { content: string } }> }
     
     clearTimeout(timeoutId)
     
