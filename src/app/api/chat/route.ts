@@ -12,7 +12,35 @@ const openai = new OpenAI({
   baseURL: 'https://api.deepseek.com'
 })
 
-const SYSTEM_PROMPT = `请简短回答，限制在100字以内。`
+const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式：
+
+# 核心结论
+用一句话总结关键点
+
+## 详细分析
+1. 第一个要点
+   - 具体说明
+   - 补充信息
+
+2. 第二个要点
+   - 具体说明
+   - 补充信息
+
+## 建议方案
+- 关键建议1
+- 关键建议2
+
+如果涉及代码，请使用代码块：
+\`\`\`language
+代码示例
+\`\`\`
+
+要求：
+- 层次分明，使用标题分级
+- 重点突出，条理清晰
+- 语言简洁，表达准确
+- 适当使用列表和代码块
+- 总字数控制在300字以内`
 
 export async function POST(req: Request) {
   try {
