@@ -1,6 +1,5 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
-import type { ChatCompletion } from 'openai/resources'
 
 const apiKey = process.env.OPENAI_API_KEY
 
@@ -48,7 +47,7 @@ export async function POST(req: Request) {
       frequency_penalty: 0
     })
 
-    const response = await Promise.race([responsePromise, timeoutPromise]) as ChatCompletion
+    const response = await Promise.race([responsePromise, timeoutPromise]) as Awaited<typeof responsePromise>
     
     if (!response.choices[0].message) {
       throw new Error('No response from API')
