@@ -22,17 +22,30 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
         signal
       })
       
-      const data = await response.json()
+      if (response.status === 504) {
+        throw new Error('TIMEOUT')
+      }
+
+      let data
+      try {
+        data = await response.json()
+      } catch (e) {
+        throw new Error('PARSE_ERROR')
+      }
       
       if (!response.ok) {
-        if (response.status === 504) {
-          throw new Error('API request timeout')
-        }
-        throw new Error(JSON.stringify(data))
+        throw new Error(JSON.stringify({
+          type: 'API_ERROR',
+          status: response.status,
+          details: data?.error || 'Unknown error'
+        }))
       }
       
       if (data.error) {
-        throw new Error(JSON.stringify(data))
+        throw new Error(JSON.stringify({
+          type: 'API_ERROR',
+          details: data.error
+        }))
       }
       
       return data
@@ -41,6 +54,20 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
     }
   } catch (error) {
     console.error('API Error:', error)
+    if (error instanceof Error) {
+      if (error.message === 'TIMEOUT') {
+        throw new Error(JSON.stringify({
+          type: 'TIMEOUT',
+          details: '请求超时，请重试'
+        }))
+      }
+      if (error.message === 'PARSE_ERROR') {
+        throw new Error(JSON.stringify({
+          type: 'PARSE_ERROR',
+          details: '服务器响应格式错误'
+        }))
+      }
+    }
     throw error
   }
 } 
