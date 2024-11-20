@@ -1,13 +1,14 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 
-// 添加环境变量检查
-if (!process.env.OPENAI_API_KEY) {
-  console.error('OPENAI_API_KEY is not set')
+const apiKey = process.env.OPENAI_API_KEY
+
+if (!apiKey) {
+  console.error('警告: OPENAI_API_KEY 环境变量未设置')
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: apiKey || 'sk-dc76621f0d1c4f9cb45064cf944c1455',
   baseURL: 'https://api.deepseek.com'
 })
 
