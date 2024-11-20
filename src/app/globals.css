@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Markdown 样式 */
+.prose pre {
+  @apply bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto;
+}
+
+.prose code {
+  @apply bg-gray-100 dark:bg-gray-800 px-1 rounded;
+}
+
+.prose table {
+  @apply border-collapse border border-gray-300 dark:border-gray-700;
+}
+
+.prose th,
+.prose td {
+  @apply border border-gray-300 dark:border-gray-700 px-4 py-2;
+}
+
+.prose img {
+  @apply max-w-full rounded-lg;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
