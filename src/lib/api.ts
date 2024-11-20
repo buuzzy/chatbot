@@ -27,19 +27,16 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       }
 
       let data
-      try {
-        data = await response.json()
-      } catch (_e) {
-        throw new Error('PARSE_ERROR')
-      }
-      
       if (!response.ok) {
+        data = await response.json().catch(() => ({}))
         throw new Error(JSON.stringify({
           type: 'API_ERROR',
           status: response.status,
           details: data?.error || 'Unknown error'
         }))
       }
+
+      data = await response.json()
       
       if (data.error) {
         throw new Error(JSON.stringify({
