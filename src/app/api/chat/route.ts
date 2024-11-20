@@ -12,7 +12,7 @@ const openai = new OpenAI({
   baseURL: 'https://api.deepseek.com'
 })
 
-const SYSTEM_PROMPT = `请简短回答，控制在200字以内。`
+const SYSTEM_PROMPT = `请简短回答，限制在100字以内。`
 
 export async function POST(req: Request) {
   try {
@@ -32,15 +32,22 @@ export async function POST(req: Request) {
     ]
     
     console.log('Calling Deepseek API...')
-    const response = await openai.chat.completions.create({
+    
+    // 使用 Promise.race 来处理超时
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 8000)
+    })
+
+    const responsePromise = openai.chat.completions.create({
       model: 'deepseek-chat',
       messages: formattedMessages,
-      temperature: 0.3,     // 降低创造性以加快响应
-      max_tokens: 400,      // 限制回答长度
+      temperature: 0.3,     // 降低创造性，加快响应
+      max_tokens: 200,      // 进一步限制回答长度
       presence_penalty: 0,
-      frequency_penalty: 0,
-      timeout: 8000         // 8秒超时
+      frequency_penalty: 0
     })
+
+    const response = await Promise.race([responsePromise, timeoutPromise])
     
     if (!response.choices[0].message) {
       throw new Error('No response from API')
@@ -50,12 +57,14 @@ export async function POST(req: Request) {
     return NextResponse.json(response.choices[0].message)
   } catch (error) {
     console.error('API Error:', error)
+    const isTimeout = error instanceof Error && error.message === 'Request timeout'
+    
     return NextResponse.json(
       { 
-        error: 'Failed to get response',
+        error: isTimeout ? 'Request timeout' : 'Failed to get response',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: isTimeout ? 504 : 500 }
     )
   }
 }
