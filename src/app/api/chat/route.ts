@@ -53,7 +53,6 @@ export async function POST(req: Request) {
       )
     }
 
-    // 只保留最近的几条消息，减少处理时间
     const recentMessages = messages.slice(-5)
     
     const formattedMessages = [
@@ -61,51 +60,38 @@ export async function POST(req: Request) {
       ...recentMessages
     ]
     
-    // 使用流式响应
-    const response = await openai.chat.completions.create({
+    // 创建流式响应
+    const stream = await openai.chat.completions.create({
       model: 'deepseek-chat',
       messages: formattedMessages,
       temperature: 0.3,
       max_tokens: 200,
       presence_penalty: 0,
       frequency_penalty: 0,
-      stream: true  // 启用流式响应
+      stream: true
     })
 
     // 创建一个 TransformStream 来处理流式响应
     const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
     
     let counter = 0
-    const stream = new TransformStream({
+    const transformStream = new TransformStream({
       async transform(chunk, controller) {
         counter++
         if (counter < 2) return // 跳过第一个空消息
         
-        const json = decoder.decode(chunk)
-        const lines = json.split('\n').filter(line => line.trim() !== '')
-        
-        for (const line of lines) {
-          const message = line.replace(/^data: /, '')
-          if (message === '[DONE]') {
-            controller.terminate()
-            return
+        try {
+          const text = chunk.choices[0]?.delta?.content || ''
+          if (text) {
+            controller.enqueue(encoder.encode(text))
           }
-          
-          try {
-            const parsed = JSON.parse(message)
-            const text = parsed.choices[0]?.delta?.content || ''
-            if (text) {
-              controller.enqueue(encoder.encode(text))
-            }
-          } catch (error) {
-            console.error('Error parsing chunk:', error)
-          }
+        } catch (error) {
+          console.error('Error parsing chunk:', error)
         }
       }
     })
 
-    return new Response(stream.readable, {
+    return new Response(stream.toReadableStream().pipeThrough(transformStream), {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
