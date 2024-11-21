@@ -21,15 +21,22 @@ if (typeof window !== 'undefined') {
   analytics = getAnalytics(app)
 } else {
   // 服务器端的空实现
-  app = {} as FirebaseApp
+  app = {} as unknown as FirebaseApp
   auth = {
     onAuthStateChanged: () => () => {},
     signOut: async () => {},
-  } as Auth
-  db = {
-    type: 'firestore',
-    toJSON: () => ({}),
-  } as Firestore
+    currentUser: null,
+    app: {} as FirebaseApp,
+    name: 'auth',
+    config: {},
+    setPersistence: async () => {},
+    languageCode: null,
+    emulatorConfig: null,
+    settings: { appVerificationDisabledForTesting: false },
+    tenantId: null,
+    useDeviceLanguage: () => {},
+  } as unknown as Auth
+  db = {} as unknown as Firestore
 }
 
 export { app, auth, db, analytics } 
