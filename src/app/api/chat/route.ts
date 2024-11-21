@@ -45,8 +45,10 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
+    console.log('接收到的消息:', messages)
     
     if (!messages || !Array.isArray(messages)) {
+      console.error('无效的请求格式')
       return NextResponse.json(
         { error: 'Invalid request format' },
         { status: 400 }
@@ -54,52 +56,34 @@ export async function POST(req: Request) {
     }
 
     const recentMessages = messages.slice(-5)
+    console.log('处理后的消息:', recentMessages)
     
     const formattedMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...recentMessages
     ]
     
-    // 创建流式响应
-    const stream = await openai.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: formattedMessages,
-      temperature: 0.3,
-      max_tokens: 200,
-      presence_penalty: 0,
-      frequency_penalty: 0,
-      stream: true
-    })
+    console.log('调用 Deepseek API...')
+    try {
+      // 先尝试非流式响应
+      const response = await openai.chat.completions.create({
+        model: 'deepseek-chat',
+        messages: formattedMessages,
+        temperature: 0.3,
+        max_tokens: 200,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+        stream: false  // 先使用非流式响应进行测试
+      })
 
-    // 创建一个 TransformStream 来处理流式响应
-    const encoder = new TextEncoder()
-    
-    let counter = 0
-    const transformStream = new TransformStream({
-      async transform(chunk, controller) {
-        counter++
-        if (counter < 2) return // 跳过第一个空消息
-        
-        try {
-          const text = chunk.choices[0]?.delta?.content || ''
-          if (text) {
-            controller.enqueue(encoder.encode(text))
-          }
-        } catch (error) {
-          console.error('Error parsing chunk:', error)
-        }
-      }
-    })
-
-    return new Response(stream.toReadableStream().pipeThrough(transformStream), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    })
+      console.log('API 响应成功:', response.choices[0]?.message)
+      return NextResponse.json(response.choices[0]?.message)
+    } catch (apiError) {
+      console.error('Deepseek API 错误:', apiError)
+      throw apiError
+    }
   } catch (error) {
-    console.error('API Error:', error)
+    console.error('处理错误:', error)
     return NextResponse.json(
       { 
         error: 'Failed to get response',
