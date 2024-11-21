@@ -46,22 +46,12 @@ export async function chatCompletion(
     })
 
     let fullContent = ''
-    let currentParagraph = ''
     
     for await (const chunk of response) {
       const content = chunk.choices[0]?.delta?.content || ''
       fullContent += content
-      currentParagraph += content
-
-      // 当遇到换行符或段落结束时更新UI
-      if (content.includes('\n') || content.includes('。') || content.includes('！') || content.includes('？')) {
-        onStream?.(fullContent)
-        currentParagraph = ''
-      }
-    }
-
-    // 确保最后一段内容也被显示
-    if (currentParagraph) {
+      
+      // 每收到新的内容就立即更新UI
       onStream?.(fullContent)
     }
 

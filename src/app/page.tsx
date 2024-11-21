@@ -1,51 +1,95 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Auth } from '@/components/Auth'
+import { auth, db } from '@/lib/firebase'
+import { User } from 'firebase/auth'
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc 
+} from 'firebase/firestore'
 import { chatCompletion } from '@/lib/api'
 import type { Chat, Message } from '@/types/chat'
 import { MarkdownContent } from '@/components/MarkdownContent'
 import { StatusIndicator } from '@/components/StatusIndicator'
+import { signOut } from 'firebase/auth'
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null)
   const [chats, setChats] = useState<Chat[]>([])
   const [currentChatId, setCurrentChatId] = useState<string>('')
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<{type: 'error' | 'network-error', message?: string} | null>(null)
+  const [isLoadingChats, setIsLoadingChats] = useState(true)
 
-  // 从 localStorage 加载聊天历史
+  // 监听认证状态
   useEffect(() => {
-    const savedChats = localStorage.getItem('chats')
-    if (savedChats) {
-      const parsedChats = JSON.parse(savedChats)
-      setChats(parsedChats)
-      if (parsedChats.length > 0) {
-        setCurrentChatId(parsedChats[0].id)
-      }
-    } else {
-      // 如果没有保存的对话，自动创建一个新对话
-      handleNewChat()
-    }
+    const unsubscribe = auth.onAuthStateChanged(setUser)
+    return () => unsubscribe()
   }, [])
 
-  // 保存聊天历史到 localStorage
+  // 从 Firestore 加载聊天历史
   useEffect(() => {
-    if (chats.length > 0) {
-      localStorage.setItem('chats', JSON.stringify(chats))
+    const loadChats = async () => {
+      if (!user) {
+        setIsLoadingChats(false)
+        return
+      }
+
+      try {
+        setIsLoadingChats(true)
+        const chatsRef = collection(db, 'chats')
+        const q = query(
+          chatsRef,
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc')
+        )
+
+        const snapshot = await getDocs(q)
+        const loadedChats = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        })) as Chat[]
+
+        setChats(loadedChats)
+        if (loadedChats.length > 0) {
+          setCurrentChatId(loadedChats[0].id)
+        }
+      } catch (error) {
+        console.error('Error loading chats:', error)
+        // 可以添加错误提示
+      } finally {
+        setIsLoadingChats(false)
+      }
     }
-  }, [chats])
+
+    loadChats()
+  }, [user])
 
   const currentChat = chats.find(chat => chat.id === currentChatId)
 
   // 创建新对话
-  const handleNewChat = () => {
-    const newChat: Chat = {
-      id: Date.now().toString(),
+  const handleNewChat = async () => {
+    if (!user) return
+
+    const newChat: Omit<Chat, 'id'> = {
       title: '新对话',
       messages: [],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      userId: user.uid
     }
-    setChats(prev => [newChat, ...prev])
-    setCurrentChatId(newChat.id)
+
+    const docRef = await addDoc(collection(db, 'chats'), newChat)
+    const chatWithId = { ...newChat, id: docRef.id }
+    
+    setChats(prev => [chatWithId, ...prev])
+    setCurrentChatId(docRef.id)
     setInput('')
   }
 
@@ -56,7 +100,7 @@ export default function Home() {
 
   // 发送消息
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !currentChatId) return
+    if (!input.trim() || isLoading || !currentChatId || !user) return
     
     const userMessageId = `user_${Date.now()}`
     const userMessage: Message = {
@@ -153,6 +197,13 @@ export default function Home() {
           return chat
         }))
       }
+
+      // 更新 Firestore
+      const chatRef = doc(db, 'chats', currentChatId)
+      await updateDoc(chatRef, {
+        messages: currentChat?.messages
+      })
+
     } catch (error) {
       console.error('Chat error:', error)
       
@@ -193,13 +244,25 @@ export default function Home() {
     }
   }
 
+  if (!user) {
+    return <Auth />
+  }
+
   return (
     <main className="flex h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* 左侧边栏 */}
       <aside className="w-64 border-r border-gray-200 dark:border-gray-700 p-4 hidden md:block">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 animate-pulse"></div>
-          <h1 className="font-semibold text-xl">AI Chat</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-500 animate-pulse"></div>
+            <h1 className="font-semibold text-xl">AI Chat</h1>
+          </div>
+          <button
+            onClick={() => signOut(auth)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            退出
+          </button>
         </div>
         
         <button 
@@ -214,19 +277,29 @@ export default function Home() {
 
         {/* 对话历史列表 */}
         <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-12rem)]">
-          {chats.map(chat => (
-            <button
-              key={chat.id}
-              onClick={() => handleSelectChat(chat.id)}
-              className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                chat.id === currentChatId
-                  ? 'bg-blue-500 text-white'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <div className="truncate text-sm">{chat.title}</div>
-            </button>
-          ))}
+          {isLoadingChats ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : chats.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              暂无对话历史
+            </div>
+          ) : (
+            chats.map(chat => (
+              <button
+                key={chat.id}
+                onClick={() => handleSelectChat(chat.id)}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  chat.id === currentChatId
+                    ? 'bg-blue-500 text-white'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <div className="truncate text-sm">{chat.title}</div>
+              </button>
+            ))
+          )}
         </div>
       </aside>
 
