@@ -3,7 +3,6 @@ import { auth } from '@/lib/firebase'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  signOut,
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth'
