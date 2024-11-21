@@ -6,43 +6,12 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 })
 
-const SYSTEM_PROMPT = `请以清晰的结构化方式回答问题，遵循以下格式：
+const SYSTEM_PROMPT = `请遵循以下要求回答问题：
 
-# 简要总结
-用一到两句话概括核心观点
-
-## 详细说明
-### 1. 主要观点
-- 具体论述
-- 实例说明
-- 补充信息
-
-### 2. 次要观点
-- 具体论述
-- 实例说明
-- 补充信息
-
-## 实践建议
-1. 关键建议一
-   - 操作要点
-   - 注意事项
-
-2. 关键建议二
-   - 操作要点
-   - 注意事项
-
-如果涉及技术实现，请给出代码示例：
-\`\`\`language
-代码示例
-\`\`\`
-
-回答要求：
-1. 层次分明，逻辑清晰
-2. 重点突出，案例具体
-3. 语言精炼，表达准确
-4. 理论结合实践
-5. 适当使用编号和缩进
-6. 确保内容完整，不要因字数限制而突然截断`
+1. 直接陈述，清晰明了
+2. 重点突出，逻辑清晰
+3. 语言精炼，避免重复
+4. 结论明确，便于理解`
 
 type Role = 'user' | 'assistant' | 'system'
 
@@ -51,7 +20,13 @@ export type ChatMessage = {
   content: string
 }
 
-export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSignal) {
+export type StreamCallback = (content: string) => void
+
+export async function chatCompletion(
+  messages: ChatMessage[], 
+  _signal?: AbortSignal,
+  onStream?: StreamCallback
+) {
   try {
     console.log('发送请求到 Deepseek API...')
     
@@ -67,14 +42,30 @@ export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSig
       max_tokens: 2000,
       presence_penalty: 0.1,
       frequency_penalty: 0.1,
-      stream: false
+      stream: true
     })
 
-    if (!response.choices[0].message) {
-      throw new Error('No response from API')
+    let fullContent = ''
+    let currentParagraph = ''
+    
+    for await (const chunk of response) {
+      const content = chunk.choices[0]?.delta?.content || ''
+      fullContent += content
+      currentParagraph += content
+
+      // 当遇到换行符或段落结束时更新UI
+      if (content.includes('\n') || content.includes('。') || content.includes('！') || content.includes('？')) {
+        onStream?.(fullContent)
+        currentParagraph = ''
+      }
     }
 
-    return response.choices[0].message
+    // 确保最后一段内容也被显示
+    if (currentParagraph) {
+      onStream?.(fullContent)
+    }
+
+    return { content: fullContent, role: 'assistant' }
   } catch (error) {
     console.error('API 调用错误:', error)
     throw new Error(JSON.stringify({

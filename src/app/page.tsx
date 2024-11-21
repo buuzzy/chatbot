@@ -58,12 +58,14 @@ export default function Home() {
   const handleSend = async () => {
     if (!input.trim() || isLoading || !currentChatId) return
     
+    const userMessageId = `user_${Date.now()}`
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId,
       content: input.trim(),
       role: 'user'
     }
     
+    // 先添加用户消息
     setChats(prev => prev.map(chat => {
       if (chat.id === currentChatId) {
         return {
@@ -88,30 +90,64 @@ export default function Home() {
       apiMessages.push({ role: 'user', content: currentInputValue })
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
       
-      const recentMessages = apiMessages.slice(-5)  // 只保留最近5条消息
-      
-      const response = await chatCompletion(recentMessages, controller.signal)
+      const recentMessages = apiMessages.slice(-5)
+
+      // 创建AI回复的临时消息
+      const assistantMessageId = `assistant_${Date.now()}`
+      setChats(prev => prev.map(chat => {
+        if (chat.id === currentChatId) {
+          return {
+            ...chat,
+            messages: [...chat.messages, {
+              id: assistantMessageId,
+              content: '',
+              role: 'assistant'
+            }]
+          }
+        }
+        return chat
+      }))
+
+      // 处理流式响应
+      const response = await chatCompletion(
+        recentMessages, 
+        controller.signal,
+        (content) => {
+          setChats(prev => prev.map(chat => {
+            if (chat.id === currentChatId) {
+              const updatedMessages = chat.messages.map(msg => 
+                msg.id === assistantMessageId
+                  ? { ...msg, content }
+                  : msg
+              )
+              return {
+                ...chat,
+                messages: updatedMessages
+              }
+            }
+            return chat
+          }))
+        }
+      )
+
       clearTimeout(timeoutId)
       
+      // 更新最终消息
       if (response?.content) {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: response.content,
-          role: 'assistant'
-        }
-        
         setChats(prev => prev.map(chat => {
           if (chat.id === currentChatId) {
-            const title = chat.messages.length === 0 ? 
-              currentInputValue.slice(0, 20) + '...' : 
-              chat.title
-            
             return {
               ...chat,
-              title,
-              messages: [...chat.messages, aiMessage]
+              title: chat.messages.length <= 2 ? 
+                currentInputValue.slice(0, 20) + '...' : 
+                chat.title,
+              messages: chat.messages.map(msg => 
+                msg.id === assistantMessageId
+                  ? { ...msg, content: response.content }
+                  : msg
+              )
             }
           }
           return chat

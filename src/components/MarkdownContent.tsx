@@ -14,24 +14,19 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
 
     for (const line of lines) {
       // 处理标题
-      if (line.startsWith('#')) {
-        const match = line.match(/^#+/)
-        if (match) {
-          const level = match[0].length
-          const title = line.replace(/^#+\s/, '')
-          formattedLines.push(
-            <h1 
-              key={key++}
-              className={`font-bold ${
-                level === 1 ? 'text-xl mt-6 mb-3 text-blue-600 dark:text-blue-400' :
-                level === 2 ? 'text-lg mt-4 mb-2 text-gray-800 dark:text-gray-200' :
-                'text-base mt-3 mb-1 text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              {title}
-            </h1>
-          )
-        }
+      if (line.match(/^[一二三]、/) || line.match(/^\d+\.\d+/)) {
+        formattedLines.push(
+          <h1 
+            key={key++}
+            className={`font-bold ${
+              line.match(/^[一二三]、/) 
+                ? 'text-xl mt-6 mb-3 text-blue-600 dark:text-blue-400' 
+                : 'text-lg mt-4 mb-2 text-gray-800 dark:text-gray-200'
+            }`}
+          >
+            {line}
+          </h1>
+        )
         continue
       }
 
