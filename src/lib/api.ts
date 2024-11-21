@@ -25,7 +25,7 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       }))
     }
     
-    const errorData = await response.json().catch(() => ({ 
+    const data = await response.json().catch(() => ({ 
       error: '无法解析服务器响应' 
     }))
     
@@ -33,11 +33,11 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       throw new Error(JSON.stringify({
         type: 'API_ERROR',
         status: response.status,
-        details: errorData.error || 'Unknown error'
+        details: data.error || 'Unknown error'
       }))
     }
 
-    return errorData
+    return data
   } catch (error) {
     console.error('API 调用错误:', error)
     throw error

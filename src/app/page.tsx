@@ -90,7 +90,9 @@ export default function Home() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30秒超时
       
-      const response = await chatCompletion(apiMessages, controller.signal)
+      const recentMessages = apiMessages.slice(-5)  // 只保留最近5条消息
+      
+      const response = await chatCompletion(recentMessages, controller.signal)
       clearTimeout(timeoutId)
       
       if (response?.content) {
