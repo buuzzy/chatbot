@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources'
 
 const openai = new OpenAI({
   apiKey: 'sk-dc76621f0d1c4f9cb45064cf944c1455',
@@ -23,15 +24,15 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 - 关键建议2`
 
 export type ChatMessage = {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
 }
 
-export async function chatCompletion(messages: ChatMessage[], signal?: AbortSignal) {
+export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSignal) {
   try {
     console.log('发送请求到 Deepseek API...')
     
-    const formattedMessages = [
+    const formattedMessages: ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...messages
     ]
