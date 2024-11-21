@@ -6,22 +6,43 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 })
 
-const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式：
-# 核心结论
-用一句话总结关键点
+const SYSTEM_PROMPT = `请以清晰的结构化方式回答问题，遵循以下格式：
 
-## 详细分析
-1. 第一个要点
-   - 具体说明
-   - 补充信息
+# 简要总结
+用一到两句话概括核心观点
 
-2. 第二个要点
-   - 具体说明
-   - 补充信息
+## 详细说明
+### 1. 主要观点
+- 具体论述
+- 实例说明
+- 补充信息
 
-## 建议方案
-- 关键建议1
-- 关键建议2`
+### 2. 次要观点
+- 具体论述
+- 实例说明
+- 补充信息
+
+## 实践建议
+1. 关键建议一
+   - 操作要点
+   - 注意事项
+
+2. 关键建议二
+   - 操作要点
+   - 注意事项
+
+如果涉及技术实现，请给出代码示例：
+\`\`\`language
+代码示例
+\`\`\`
+
+回答要求：
+1. 层次分明，逻辑清晰
+2. 重点突出，案例具体
+3. 语言精炼，表达准确
+4. 理论结合实践
+5. 适当使用编号和缩进
+6. 确保内容完整，不要因字数限制而突然截断`
 
 type Role = 'user' | 'assistant' | 'system'
 
@@ -42,10 +63,10 @@ export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSig
     const response = await openai.chat.completions.create({
       model: 'deepseek-chat',
       messages: formattedMessages as any,
-      temperature: 0.3,
-      max_tokens: 200,
-      presence_penalty: 0,
-      frequency_penalty: 0,
+      temperature: 0.7,
+      max_tokens: 2000,
+      presence_penalty: 0.1,
+      frequency_penalty: 0.1,
       stream: false
     })
 
