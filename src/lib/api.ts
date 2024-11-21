@@ -2,7 +2,8 @@ import OpenAI from 'openai'
 
 const openai = new OpenAI({
   apiKey: 'sk-dc76621f0d1c4f9cb45064cf944c1455',
-  baseURL: 'https://api.deepseek.com'
+  baseURL: 'https://api.deepseek.com',
+  dangerouslyAllowBrowser: true
 })
 
 const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式：
