@@ -17,9 +17,22 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
     
     console.log('API 响应状态:', response.status)
     
+    if (response.status === 504) {
+      throw new Error(JSON.stringify({
+        type: 'TIMEOUT_ERROR',
+        status: 504,
+        details: '服务器响应超时，请重试'
+      }))
+    }
+    
+    let errorData
+    try {
+      errorData = await response.json()
+    } catch (e) {
+      errorData = { error: '无法解析服务器响应' }
+    }
+    
     if (!response.ok) {
-      const errorData = await response.json()
-      console.error('API 错误:', errorData)
       throw new Error(JSON.stringify({
         type: 'API_ERROR',
         status: response.status,
@@ -27,9 +40,7 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       }))
     }
 
-    const data = await response.json()
-    console.log('API 响应数据:', data)
-    return data
+    return errorData
   } catch (error) {
     console.error('API 调用错误:', error)
     throw error

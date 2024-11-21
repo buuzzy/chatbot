@@ -119,24 +119,27 @@ export default function Home() {
       console.error('Chat error:', error)
       
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          setError({ type: 'error', message: '响应超时，请重试' })
-        } else if (!navigator.onLine || error.message.includes('network')) {
-          setError({ type: 'network-error' })
-        } else {
-          // 尝试解析错误响应
-          try {
-            const errorData = JSON.parse(error.message)
+        try {
+          const errorData = JSON.parse(error.message)
+          
+          if (errorData.type === 'TIMEOUT_ERROR') {
             setError({ 
               type: 'error', 
-              message: `服务器响应错误: ${errorData.details || errorData.error || '未知错误'}`
+              message: '服务器响应超时，请稍后重试'
             })
-          } catch {
+          } else if (!navigator.onLine) {
+            setError({ type: 'network-error' })
+          } else {
             setError({ 
               type: 'error', 
-              message: `服务器响应错误: ${error.message}`
+              message: errorData.details || '服务器响应错误'
             })
           }
+        } catch {
+          setError({ 
+            type: 'error', 
+            message: '发生未知错误'
+          })
         }
       }
     } finally {
