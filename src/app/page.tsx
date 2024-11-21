@@ -235,14 +235,16 @@ export default function Home() {
 
       // 更新 Firestore
       const chatRef = doc(db, 'chats', currentChatId)
-      const updatedMessages = currentChat?.messages.concat([
+      const currentMessages = currentChat?.messages || []
+      const updatedMessages: Message[] = [
+        ...currentMessages,
         userMessage,
         {
           id: assistantMessageId,
           content: response?.content || '',
           role: 'assistant'
         }
-      ])
+      ]
 
       // 如果是第一条消息，生成标题
       if (currentChat?.messages.length === 0) {
