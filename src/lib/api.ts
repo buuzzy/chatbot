@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import type { ChatCompletionMessageParam } from 'openai/resources'
 
 const openai = new OpenAI({
   apiKey: 'sk-dc76621f0d1c4f9cb45064cf944c1455',
@@ -32,7 +31,7 @@ export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSig
   try {
     console.log('发送请求到 Deepseek API...')
     
-    const formattedMessages: ChatCompletionMessageParam[] = [
+    const formattedMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...messages
     ]
