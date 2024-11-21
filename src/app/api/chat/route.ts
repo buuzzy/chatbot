@@ -45,7 +45,6 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
-    console.log('Received messages:', messages.length)
     
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -54,45 +53,73 @@ export async function POST(req: Request) {
       )
     }
 
+    // 只保留最近的几条消息，减少处理时间
+    const recentMessages = messages.slice(-5)
+    
     const formattedMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...messages
+      ...recentMessages
     ]
     
-    console.log('Calling Deepseek API...')
-    
-    // 使用 Promise.race 来处理超时
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 8000)
-    })
-
-    const responsePromise = openai.chat.completions.create({
+    // 使用流式响应
+    const response = await openai.chat.completions.create({
       model: 'deepseek-chat',
       messages: formattedMessages,
-      temperature: 0.3,     // 降低创造性，加快响应
-      max_tokens: 200,      // 进一步限制回答长度
+      temperature: 0.3,
+      max_tokens: 200,
       presence_penalty: 0,
-      frequency_penalty: 0
+      frequency_penalty: 0,
+      stream: true  // 启用流式响应
     })
 
-    const response = await Promise.race([responsePromise, timeoutPromise]) as Awaited<typeof responsePromise>
+    // 创建一个 TransformStream 来处理流式响应
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
     
-    if (!response.choices[0].message) {
-      throw new Error('No response from API')
-    }
+    let counter = 0
+    const stream = new TransformStream({
+      async transform(chunk, controller) {
+        counter++
+        if (counter < 2) return // 跳过第一个空消息
+        
+        const json = decoder.decode(chunk)
+        const lines = json.split('\n').filter(line => line.trim() !== '')
+        
+        for (const line of lines) {
+          const message = line.replace(/^data: /, '')
+          if (message === '[DONE]') {
+            controller.terminate()
+            return
+          }
+          
+          try {
+            const parsed = JSON.parse(message)
+            const text = parsed.choices[0]?.delta?.content || ''
+            if (text) {
+              controller.enqueue(encoder.encode(text))
+            }
+          } catch (error) {
+            console.error('Error parsing chunk:', error)
+          }
+        }
+      }
+    })
 
-    console.log('API call successful')
-    return NextResponse.json(response.choices[0].message)
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (error) {
     console.error('API Error:', error)
-    const isTimeout = error instanceof Error && error.message === 'Request timeout'
-    
     return NextResponse.json(
       { 
-        error: isTimeout ? 'Request timeout' : 'Failed to get response',
+        error: 'Failed to get response',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: isTimeout ? 504 : 500 }
+      { status: 500 }
     )
   }
 }

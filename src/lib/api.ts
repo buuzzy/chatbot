@@ -23,8 +23,22 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
       }))
     }
 
-    const data = await response.json()
-    return data
+    // 处理流式响应
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let content = ''
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const text = decoder.decode(value)
+        content += text
+      }
+    }
+
+    return { content }
   } catch (error) {
     console.error('API Error:', error)
     throw error
