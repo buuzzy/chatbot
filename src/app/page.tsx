@@ -11,6 +11,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc 
 } from 'firebase/firestore'
 import { chatCompletion } from '@/lib/api'
@@ -18,6 +19,20 @@ import type { Chat, Message } from '@/types/chat'
 import { MarkdownContent } from '@/components/MarkdownContent'
 import { StatusIndicator } from '@/components/StatusIndicator'
 import { signOut } from 'firebase/auth'
+
+// 生成对话标题的函数
+const generateTitle = async (content: string) => {
+  try {
+    const response = await chatCompletion([{
+      role: 'user',
+      content: `请用5-10个字概括这段对话的主题："${content}"`
+    }])
+    return response.content || content.slice(0, 20) + '...'
+  } catch (error) {
+    console.error('生成标题失败:', error)
+    return content.slice(0, 20) + '...'
+  }
+}
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
@@ -37,36 +52,41 @@ export default function Home() {
   // 从 Firestore 加载聊天历史
   useEffect(() => {
     const loadChats = async () => {
-      if (!user) {
-        setIsLoadingChats(false)
-        return
-      }
+      setIsLoadingChats(true)
+      
+      if (user) {
+        // 从 Firestore 加载
+        try {
+          const chatsRef = collection(db, 'chats')
+          const q = query(
+            chatsRef,
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+          )
 
-      try {
-        setIsLoadingChats(true)
-        const chatsRef = collection(db, 'chats')
-        const q = query(
-          chatsRef,
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        )
+          const snapshot = await getDocs(q)
+          const loadedChats = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id
+          })) as Chat[]
 
-        const snapshot = await getDocs(q)
-        const loadedChats = snapshot.docs.map(doc => ({
-          ...doc.data(),
-          id: doc.id
-        })) as Chat[]
-
-        setChats(loadedChats)
-        if (loadedChats.length > 0) {
-          setCurrentChatId(loadedChats[0].id)
+          setChats(loadedChats)
+          if (loadedChats.length > 0) {
+            setCurrentChatId(loadedChats[0].id)
+          }
+        } catch (error) {
+          console.error('Error loading chats:', error)
         }
-      } catch (error) {
-        console.error('Error loading chats:', error)
-        // 可以添加错误提示
-      } finally {
-        setIsLoadingChats(false)
+      } else {
+        // 从 localStorage 加载
+        const localChats = JSON.parse(localStorage.getItem('anonymousChats') || '[]')
+        setChats(localChats)
+        if (localChats.length > 0) {
+          setCurrentChatId(localChats[0].id)
+        }
       }
+      
+      setIsLoadingChats(false)
     }
 
     loadChats()
@@ -77,7 +97,22 @@ export default function Home() {
   // 创建新对话
   const handleNewChat = async () => {
     if (!user) return
+    
+    // 检查是否已有空对话
+    const emptyChat = chats.find(chat => chat.messages.length === 0)
+    if (emptyChat) {
+      // 如果有空对话，高亮显示它
+      setCurrentChatId(emptyChat.id)
+      // 添加闪烁动画类
+      const chatElement = document.querySelector(`[data-chat-id="${emptyChat.id}"]`)
+      chatElement?.classList.add('animate-pulse')
+      setTimeout(() => {
+        chatElement?.classList.remove('animate-pulse')
+      }, 2000)
+      return
+    }
 
+    // 如果没有空对话，创建新对话
     const newChat: Omit<Chat, 'id'> = {
       title: '新对话',
       messages: [],
@@ -200,9 +235,39 @@ export default function Home() {
 
       // 更新 Firestore
       const chatRef = doc(db, 'chats', currentChatId)
-      await updateDoc(chatRef, {
-        messages: currentChat?.messages
-      })
+      const updatedMessages = currentChat?.messages.concat([
+        userMessage,
+        {
+          id: assistantMessageId,
+          content: response?.content || '',
+          role: 'assistant'
+        }
+      ])
+
+      // 如果是第一条消息，生成标题
+      if (currentChat?.messages.length === 0) {
+        const newTitle = await generateTitle(currentInputValue)
+        await updateDoc(chatRef, { 
+          messages: updatedMessages,
+          title: newTitle
+        })
+        
+        setChats(prev => prev.map(chat => 
+          chat.id === currentChatId ? {
+            ...chat,
+            title: newTitle,
+            messages: updatedMessages
+          } : chat
+        ))
+      } else {
+        await updateDoc(chatRef, { messages: updatedMessages })
+        setChats(prev => prev.map(chat => 
+          chat.id === currentChatId ? {
+            ...chat,
+            messages: updatedMessages
+          } : chat
+        ))
+      }
 
     } catch (error) {
       console.error('Chat error:', error)
@@ -241,6 +306,29 @@ export default function Home() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  // 添加删除对话的处理函数
+  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // 阻止事件冒泡，避免触发选择对话
+    
+    if (!user) return
+    
+    try {
+      // 删除 Firestore 文档
+      await deleteDoc(doc(db, 'chats', chatId))
+      
+      // 更新本地状态
+      setChats(prev => prev.filter(chat => chat.id !== chatId))
+      
+      // 如果删除的是当前对话，选择第一个对话或清空当前对话
+      if (chatId === currentChatId) {
+        const remainingChats = chats.filter(chat => chat.id !== chatId)
+        setCurrentChatId(remainingChats[0]?.id || '')
+      }
+    } catch (error) {
+      console.error('删除对话失败:', error)
     }
   }
 
@@ -287,17 +375,35 @@ export default function Home() {
             </div>
           ) : (
             chats.map(chat => (
-              <button
+              <div
                 key={chat.id}
-                onClick={() => handleSelectChat(chat.id)}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  chat.id === currentChatId
-                    ? 'bg-blue-500 text-white'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className="group relative"
               >
-                <div className="truncate text-sm">{chat.title}</div>
-              </button>
+                <button
+                  data-chat-id={chat.id}
+                  onClick={() => handleSelectChat(chat.id)}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    chat.id === currentChatId
+                      ? 'bg-blue-500 text-white'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <div className="truncate text-sm">
+                    {chat.messages.length === 0 ? '新对话' : chat.title}
+                  </div>
+                </button>
+                {/* 删除按钮 */}
+                <button
+                  onClick={(e) => handleDeleteChat(chat.id, e)}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full
+                    ${chat.id === currentChatId ? 'text-white' : 'text-gray-500'}
+                    opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900 transition-opacity`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
             ))
           )}
         </div>
