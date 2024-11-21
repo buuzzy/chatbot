@@ -28,7 +28,7 @@ export async function chatCompletion(messages: ChatMessage[], signal?: AbortSign
     let errorData
     try {
       errorData = await response.json()
-    } catch (e) {
+    } catch (_e) {
       errorData = { error: '无法解析服务器响应' }
     }
     
