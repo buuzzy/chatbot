@@ -22,8 +22,10 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 - 关键建议1
 - 关键建议2`
 
+type Role = 'user' | 'assistant' | 'system'
+
 export type ChatMessage = {
-  role: 'user' | 'assistant' | 'system'
+  role: Role
   content: string
 }
 
@@ -31,14 +33,14 @@ export async function chatCompletion(messages: ChatMessage[], _signal?: AbortSig
   try {
     console.log('发送请求到 Deepseek API...')
     
-    const formattedMessages = [
+    const formattedMessages: { role: Role; content: string }[] = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...messages
     ]
 
     const response = await openai.chat.completions.create({
       model: 'deepseek-chat',
-      messages: formattedMessages,
+      messages: formattedMessages as any,
       temperature: 0.3,
       max_tokens: 200,
       presence_penalty: 0,
