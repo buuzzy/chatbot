@@ -1,17 +1,17 @@
-import { initializeApp, getApps } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
-import { getAnalytics } from 'firebase/analytics'
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
+import { getAuth, type Auth } from 'firebase/auth'
+import { getFirestore, type Firestore } from 'firebase/firestore'
+import { getAnalytics, type Analytics } from 'firebase/analytics'
 
 const firebaseConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG 
   ? JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG)
   : {}
 
 // 只在客户端初始化 Firebase
-let app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
-let auth = null
-let db = null
-let analytics = null
+let app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+let auth: Auth | null = null
+let db: Firestore | null = null
+let analytics: Analytics | null = null
 
 // 只在客户端环境下初始化服务
 if (typeof window !== 'undefined') {
