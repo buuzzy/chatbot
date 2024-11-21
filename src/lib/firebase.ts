@@ -10,7 +10,7 @@ const firebaseConfig = process.env.NEXT_PUBLIC_FIREBASE_CONFIG
 // 只在客户端初始化 Firebase
 let app: FirebaseApp
 let auth: Auth
-let db: Firestore | null = null
+let db: Firestore
 let analytics: Analytics | null = null
 
 // 确保只在客户端初始化一次
@@ -26,6 +26,10 @@ if (typeof window !== 'undefined') {
     onAuthStateChanged: () => () => {},
     signOut: async () => {},
   } as Auth
+  db = {
+    type: 'firestore',
+    toJSON: () => ({}),
+  } as Firestore
 }
 
 export { app, auth, db, analytics } 
