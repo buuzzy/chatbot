@@ -5,12 +5,13 @@ import { ModelId } from '@/types/chat'
 
 interface ChatInputProps {
     onSend: (content: string) => void
+    onStop: () => void
     isLoading: boolean
     currentModel: ModelId
     onModelChange: (model: ModelId) => void
 }
 
-export function ChatInput({ onSend, isLoading, currentModel, onModelChange }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isLoading, currentModel, onModelChange }: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const handleSubmit = () => {
@@ -123,32 +124,59 @@ export function ChatInput({ onSend, isLoading, currentModel, onModelChange }: Ch
                         fontFamily: 'var(--font-sans)',
                     }}
                 />
-                <button
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: isLoading ? 'var(--color-text-muted)' : 'var(--color-accent)',
-                        color: '#fff',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        transition: 'background 0.15s ease, transform 0.1s ease',
-                    }}
-                    onMouseDown={e => { if (!isLoading) e.currentTarget.style.transform = 'scale(0.93)' }}
-                    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M22 2L11 13" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M22 2L15 22L11 13L2 9L22 2Z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </button>
+                {isLoading ? (
+                    <button
+                        onClick={onStop}
+                        style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: '#ef4444',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            transition: 'background 0.15s ease, transform 0.1s ease',
+                        }}
+                        onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.93)' }}
+                        onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                        title="停止生成"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="4" y="4" width="16" height="16" rx="2" />
+                        </svg>
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleSubmit}
+                        style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'var(--color-accent)',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            transition: 'background 0.15s ease, transform 0.1s ease',
+                        }}
+                        onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.93)' }}
+                        onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M22 2L11 13" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </button>
+                )}
             </div>
             <p style={{
                 textAlign: 'center',

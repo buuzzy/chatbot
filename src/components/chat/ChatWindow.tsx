@@ -5,6 +5,36 @@ import { Message } from '@/types/chat'
 import ReactMarkdown from 'react-markdown'
 // @ts-ignore
 import remarkGfm from 'remark-gfm'
+import hljs from 'highlight.js/lib/core'
+// Register common languages to keep bundle small
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import bash from 'highlight.js/lib/languages/bash'
+import json from 'highlight.js/lib/languages/json'
+import css from 'highlight.js/lib/languages/css'
+import xml from 'highlight.js/lib/languages/xml'
+import sql from 'highlight.js/lib/languages/sql'
+import markdown from 'highlight.js/lib/languages/markdown'
+import 'highlight.js/styles/github-dark.css'
+
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('js', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('ts', typescript)
+hljs.registerLanguage('tsx', typescript)
+hljs.registerLanguage('jsx', javascript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('sh', bash)
+hljs.registerLanguage('shell', bash)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('md', markdown)
 
 interface ChatWindowProps {
     messages: Message[]
@@ -12,6 +42,69 @@ interface ChatWindowProps {
     error: { type: string; message?: string } | null
 }
 
+function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
+    const [copied, setCopied] = useState(false)
+    const code = String(children).replace(/\n$/, '')
+    const langMatch = className?.match(/language-(\w+)/)
+    const lang = langMatch?.[1]
+
+    let highlighted: string
+    if (lang && hljs.getLanguage(lang)) {
+        highlighted = hljs.highlight(code, { language: lang }).value
+    } else {
+        highlighted = hljs.highlightAuto(code).value
+    }
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
+    return (
+        <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', margin: '8px 0' }}>
+            {/* Header */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '6px 12px',
+                background: '#1e1e2e',
+                fontSize: '11px',
+                color: '#888',
+            }}>
+                <span>{lang || 'code'}</span>
+                <button
+                    onClick={handleCopy}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: copied ? '#4ade80' : '#888',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '2px 6px',
+                        transition: 'color 0.15s',
+                    }}
+                >
+                    {copied ? '✓ 已复制' : '复制'}
+                </button>
+            </div>
+            <pre style={{
+                margin: 0,
+                padding: '12px',
+                background: '#0d1117',
+                overflowX: 'auto',
+                fontSize: '13px',
+                lineHeight: '1.5',
+            }}>
+                <code
+                    className={`hljs ${lang ? `language-${lang}` : ''}`}
+                    dangerouslySetInnerHTML={{ __html: highlighted }}
+                />
+            </pre>
+        </div>
+    )
+}
 function ThinkingBlock({ content, isStreaming }: { content: string; isStreaming: boolean }) {
     const [collapsed, setCollapsed] = useState(false)
 
@@ -181,6 +274,23 @@ export function ChatWindow({ messages, isLoading, error }: ChatWindowProps) {
                                         <ReactMarkdown
                                             // @ts-ignore
                                             remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                code({ className, children, ...props }: any) {
+                                                    const isInline = !className && typeof children === 'string' && !children.includes('\n')
+                                                    if (isInline) {
+                                                        return <code style={{
+                                                            background: 'rgba(110,118,129,0.2)',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '0.9em',
+                                                        }} {...props}>{children}</code>
+                                                    }
+                                                    return <CodeBlock className={className}>{children}</CodeBlock>
+                                                },
+                                                pre({ children }: any) {
+                                                    return <>{children}</>
+                                                },
+                                            }}
                                         >
                                             {msg.content}
                                         </ReactMarkdown>

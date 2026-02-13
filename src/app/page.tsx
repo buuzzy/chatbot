@@ -22,6 +22,7 @@ export default function Home() {
     handleDeleteChat,
     handleRenameChat,
     handleSendMessage,
+    handleStopGeneration,
     handleLogout,
   } = useChat()
 
@@ -158,6 +159,7 @@ export default function Home() {
                 handleSendMessage(content)
               }
             }}
+            onStop={handleStopGeneration}
             isLoading={isLoading}
             currentModel={currentModel}
             onModelChange={setCurrentModel}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { chatCompletion } from '@/lib/api'
 import { Chat, Message, ModelId } from '@/types/chat'
@@ -14,6 +14,7 @@ export function useChat() {
     const [error, setError] = useState<{ type: 'error' | 'network-error'; message?: string } | null>(null)
     const [isLoadingChats, setIsLoadingChats] = useState(true)
     const [currentModel, setCurrentModel] = useState<ModelId>('deepseek-chat')
+    const abortControllerRef = useRef<AbortController | null>(null)
 
     // Auth listener
     useEffect(() => {
@@ -187,6 +188,7 @@ export function useChat() {
             )
 
             const controller = new AbortController()
+            abortControllerRef.current = controller
 
             const response = await chatCompletion(
                 apiMessages.slice(-10) as any,
@@ -258,10 +260,30 @@ export function useChat() {
                 )
             )
         } catch (err) {
-            console.error(err)
-            setError({ type: 'error', message: err instanceof Error ? err.message : 'Unknown error' })
+            if (err instanceof Error && err.name === 'AbortError') {
+                // User stopped generation — save partial content
+                const chat = chats.find(c => c.id === currentChatId)
+                if (chat) {
+                    const currentMessages = chat.messages
+                    await supabase
+                        .from('chats')
+                        .update({ messages: currentMessages })
+                        .eq('id', currentChatId)
+                }
+            } else {
+                console.error(err)
+                setError({ type: 'error', message: err instanceof Error ? err.message : 'Unknown error' })
+            }
         } finally {
+            abortControllerRef.current = null
             setIsLoading(false)
+        }
+    }
+
+    // Stop generation
+    const handleStopGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
         }
     }
 
@@ -288,6 +310,7 @@ export function useChat() {
         handleDeleteChat,
         handleRenameChat,
         handleSendMessage,
+        handleStopGeneration,
         handleLogout,
     }
 }
