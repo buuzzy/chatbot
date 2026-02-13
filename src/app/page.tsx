@@ -1,9 +1,12 @@
 'use client'
 
 import { useChat } from '@/hooks/useChat'
+import { usePrompts } from '@/hooks/usePrompts'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatWindow } from '@/components/chat/ChatWindow'
 import { ChatInput } from '@/components/chat/ChatInput'
+import { PromptSelector } from '@/components/prompt/PromptSelector'
+import { PromptManager } from '@/components/prompt/PromptManager'
 import { useState, useEffect } from 'react'
 import { Message } from '@/types/chat'
 
@@ -26,8 +29,19 @@ export default function Home() {
     handleLogout,
   } = useChat()
 
+  const {
+    prompts,
+    activePromptId,
+    activePrompt,
+    setActivePromptId,
+    createPrompt,
+    updatePrompt,
+    deletePrompt,
+  } = usePrompts(user)
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [setupDone, setSetupDone] = useState(false)
+  const [promptManagerOpen, setPromptManagerOpen] = useState(false)
 
   // Auto-setup: trigger table creation on first load (per session)
   useEffect(() => {
@@ -150,13 +164,20 @@ export default function Home() {
 
         {/* Input Area */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
+          <div style={{ maxWidth: '768px', margin: '0 auto', padding: '4px 16px 0' }}>
+            <PromptSelector
+              prompts={prompts}
+              activePromptId={activePromptId}
+              onOpenManager={() => setPromptManagerOpen(true)}
+            />
+          </div>
           <ChatInput
             onSend={(content) => {
               if (!currentChatId) {
                 handleNewChat()
-                setTimeout(() => handleSendMessage(content), 100)
+                setTimeout(() => handleSendMessage(content, activePrompt?.content), 100)
               } else {
-                handleSendMessage(content)
+                handleSendMessage(content, activePrompt?.content)
               }
             }}
             onStop={handleStopGeneration}
@@ -166,6 +187,19 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Prompt Manager Modal */}
+      {promptManagerOpen && (
+        <PromptManager
+          prompts={prompts}
+          activePromptId={activePromptId}
+          onSelect={setActivePromptId}
+          onCreate={createPrompt}
+          onUpdate={updatePrompt}
+          onDelete={deletePrompt}
+          onClose={() => setPromptManagerOpen(false)}
+        />
+      )}
     </main>
   )
 }

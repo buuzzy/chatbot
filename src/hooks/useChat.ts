@@ -149,7 +149,7 @@ export function useChat() {
     }
 
     // Send message
-    const handleSendMessage = async (content: string) => {
+    const handleSendMessage = async (content: string, systemPrompt?: string | null) => {
         if (!content.trim() || isLoading || !currentChatId || !user) return
 
         const userMessage: Message = {
@@ -193,6 +193,7 @@ export function useChat() {
             const response = await chatCompletion(
                 apiMessages.slice(-10) as any,
                 currentModel,
+                systemPrompt,
                 controller.signal,
                 (streamContent) => {
                     setChats(prev =>

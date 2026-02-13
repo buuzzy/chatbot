@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.chats (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title text DEFAULT 'New Chat',
   messages jsonb DEFAULT '[]'::jsonb,
+  prompt_id uuid,
   created_at timestamptz DEFAULT now()
 );
 
@@ -44,6 +45,51 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON public.chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_created_at ON public.chats(created_at DESC);
+
+-- Prompts table
+CREATE TABLE IF NOT EXISTS public.prompts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  content text NOT NULL DEFAULT '',
+  is_preset boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.prompts ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'prompts' AND policyname = 'Users can read own prompts'
+  ) THEN
+    CREATE POLICY "Users can read own prompts" ON public.prompts
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'prompts' AND policyname = 'Users can insert own prompts'
+  ) THEN
+    CREATE POLICY "Users can insert own prompts" ON public.prompts
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'prompts' AND policyname = 'Users can update own prompts'
+  ) THEN
+    CREATE POLICY "Users can update own prompts" ON public.prompts
+      FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'prompts' AND policyname = 'Users can delete own prompts'
+  ) THEN
+    CREATE POLICY "Users can delete own prompts" ON public.prompts
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_prompts_user_id ON public.prompts(user_id);
 `
 
 export async function GET() {

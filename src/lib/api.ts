@@ -15,6 +15,7 @@ export type StreamCallback = (content: string) => void
 export async function chatCompletion(
   messages: ChatMessage[],
   model: ModelId,
+  systemPrompt?: string | null,
   signal?: AbortSignal,
   onStream?: StreamCallback,
   onReasoningStream?: StreamCallback,
@@ -22,7 +23,7 @@ export async function chatCompletion(
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, model }),
+    body: JSON.stringify({ messages, model, systemPrompt }),
     signal,
   })
 
