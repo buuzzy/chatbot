@@ -127,6 +127,26 @@ export function useChat() {
         }
     }
 
+    // Rename chat
+    const handleRenameChat = async (chatId: string, newTitle: string) => {
+        if (!user || !newTitle.trim()) return
+
+        try {
+            const { error: updateError } = await supabase
+                .from('chats')
+                .update({ title: newTitle.trim() })
+                .eq('id', chatId)
+
+            if (updateError) throw updateError
+
+            setChats(prev =>
+                prev.map(c => c.id === chatId ? { ...c, title: newTitle.trim() } : c)
+            )
+        } catch (err) {
+            console.error('Rename chat failed:', err)
+        }
+    }
+
     // Send message
     const handleSendMessage = async (content: string) => {
         if (!content.trim() || isLoading || !currentChatId || !user) return
@@ -266,6 +286,7 @@ export function useChat() {
         error,
         handleNewChat,
         handleDeleteChat,
+        handleRenameChat,
         handleSendMessage,
         handleLogout,
     }

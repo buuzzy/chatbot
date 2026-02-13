@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Chat } from '@/types/chat'
 import type { User } from '@supabase/supabase-js'
 
@@ -9,6 +10,7 @@ interface SidebarProps {
     onSelectChat: (id: string) => void
     onNewChat: () => void
     onDeleteChat: (id: string) => void
+    onRenameChat: (id: string, newTitle: string) => void
     isLoading: boolean
     user: User | null
     onLogout: () => void
@@ -20,10 +22,26 @@ export function Sidebar({
     onSelectChat,
     onNewChat,
     onDeleteChat,
+    onRenameChat,
     isLoading,
     user,
     onLogout,
 }: SidebarProps) {
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editValue, setEditValue] = useState('')
+
+    const startEditing = (chat: Chat) => {
+        setEditingId(chat.id)
+        setEditValue(chat.messages.length === 0 ? '' : chat.title)
+    }
+
+    const commitEdit = () => {
+        if (editingId && editValue.trim()) {
+            onRenameChat(editingId, editValue.trim())
+        }
+        setEditingId(null)
+    }
+
     return (
         <div className="flex flex-col h-full"
             style={{
@@ -102,66 +120,125 @@ export function Sidebar({
                 ) : (
                     chats.map(chat => {
                         const isActive = chat.id === currentChatId
+                        const isEditing = editingId === chat.id
+                        const displayTitle = chat.messages.length === 0 ? '新对话' : chat.title
+
                         return (
-                            <div key={chat.id} style={{ position: 'relative', marginBottom: '2px' }}>
-                                <button
-                                    onClick={() => onSelectChat(chat.id)}
-                                    style={{
-                                        width: '100%',
-                                        textAlign: 'left',
-                                        padding: '10px 36px 10px 12px',
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: 'none',
-                                        background: isActive ? 'rgba(99,102,241,0.15)' : 'transparent',
-                                        color: isActive ? '#c7d2fe' : '#94a3b8',
-                                        fontSize: '13px',
-                                        cursor: 'pointer',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        transition: 'all 0.15s ease',
-                                        display: 'block',
-                                    }}
-                                    onMouseEnter={e => {
-                                        if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
-                                        const del = e.currentTarget.parentElement?.querySelector('[data-del]') as HTMLElement
-                                        if (del) del.style.opacity = '1'
-                                    }}
-                                    onMouseLeave={e => {
-                                        if (!isActive) e.currentTarget.style.background = 'transparent'
-                                        const del = e.currentTarget.parentElement?.querySelector('[data-del]') as HTMLElement
-                                        if (del) del.style.opacity = '0'
-                                    }}
-                                >
-                                    {chat.messages.length === 0 ? '新对话' : chat.title}
-                                </button>
-                                <button
-                                    data-del
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        onDeleteChat(chat.id)
-                                    }}
-                                    style={{
-                                        position: 'absolute',
-                                        right: '8px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#64748b',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        opacity: 0,
-                                        transition: 'opacity 0.15s, color 0.15s',
-                                        lineHeight: 0,
-                                    }}
-                                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1' }}
-                                    onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
-                                >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                </button>
+                            <div
+                                key={chat.id}
+                                style={{ position: 'relative', marginBottom: '2px' }}
+                                onMouseEnter={e => {
+                                    const actions = e.currentTarget.querySelector('[data-actions]') as HTMLElement
+                                    if (actions) actions.style.opacity = '1'
+                                }}
+                                onMouseLeave={e => {
+                                    const actions = e.currentTarget.querySelector('[data-actions]') as HTMLElement
+                                    if (actions) actions.style.opacity = '0'
+                                }}
+                            >
+                                {isEditing ? (
+                                    <input
+                                        autoFocus
+                                        value={editValue}
+                                        onChange={e => setEditValue(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') commitEdit()
+                                            if (e.key === 'Escape') setEditingId(null)
+                                        }}
+                                        onBlur={commitEdit}
+                                        style={{
+                                            width: '100%',
+                                            padding: '9px 12px',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: '1px solid #6366f1',
+                                            background: 'rgba(99,102,241,0.1)',
+                                            color: '#e2e8f0',
+                                            fontSize: '13px',
+                                            outline: 'none',
+                                            fontFamily: 'var(--font-sans)',
+                                        }}
+                                    />
+                                ) : (
+                                    <button
+                                        onClick={() => onSelectChat(chat.id)}
+                                        onDoubleClick={() => startEditing(chat)}
+                                        style={{
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            padding: '10px 56px 10px 12px',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: 'none',
+                                            background: isActive ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                            color: isActive ? '#c7d2fe' : '#94a3b8',
+                                            fontSize: '13px',
+                                            cursor: 'pointer',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            transition: 'all 0.15s ease',
+                                            display: 'block',
+                                        }}
+                                        onMouseEnter={e => {
+                                            if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                                        }}
+                                        onMouseLeave={e => {
+                                            if (!isActive) e.currentTarget.style.background = 'transparent'
+                                        }}
+                                    >
+                                        {displayTitle}
+                                    </button>
+                                )}
+
+                                {/* Action buttons: rename + delete */}
+                                {!isEditing && (
+                                    <div
+                                        data-actions
+                                        style={{
+                                            position: 'absolute',
+                                            right: '6px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            display: 'flex',
+                                            gap: '2px',
+                                            opacity: 0,
+                                            transition: 'opacity 0.15s',
+                                        }}
+                                    >
+                                        {/* Rename */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); startEditing(chat) }}
+                                            title="重命名"
+                                            style={{
+                                                background: 'none', border: 'none', color: '#64748b',
+                                                cursor: 'pointer', padding: '4px', lineHeight: 0,
+                                                transition: 'color 0.15s',
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.color = '#6366f1' }}
+                                            onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
+                                        >
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
+                                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </button>
+                                        {/* Delete */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); onDeleteChat(chat.id) }}
+                                            title="删除"
+                                            style={{
+                                                background: 'none', border: 'none', color: '#64748b',
+                                                cursor: 'pointer', padding: '4px', lineHeight: 0,
+                                                transition: 'color 0.15s',
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
+                                            onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
+                                        >
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )
                     })

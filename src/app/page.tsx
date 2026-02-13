@@ -20,6 +20,7 @@ export default function Home() {
     error,
     handleNewChat,
     handleDeleteChat,
+    handleRenameChat,
     handleSendMessage,
     handleLogout,
   } = useChat()
@@ -89,6 +90,7 @@ export default function Home() {
             setMobileMenuOpen(false)
           }}
           onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat}
           isLoading={isLoadingChats}
           user={user}
           onLogout={handleLogout}
