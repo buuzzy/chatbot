@@ -1,0 +1,75 @@
+# Changelog
+
+本文档记录项目的重大变更。
+
+---
+
+## [v0.2.0] - 2026-02-12 ~ 2026-02-13
+
+### 🏗️ 架构重构
+
+- **前端组件化**：将 500+ 行的 `page.tsx` 拆解为 `Sidebar`、`ChatWindow`、`ChatInput` 三个独立组件
+- **逻辑抽离**：创建 `useChat` Hook，统一管理对话状态、消息收发、数据持久化
+- **API 安全修复**：`lib/api.ts` 从直接在浏览器调用 DeepSeek（暴露 API Key）改为通过 `/api/chat` 服务端路由中转
+- **流式响应恢复**：服务端 `route.ts` 使用 `ReadableStream` 实现流式输出
+
+### 🎨 UI 重写
+
+- 全新设计系统：CSS Variables + 自定义配色方案（支持暗色模式）
+- 气泡式消息布局，打字机动画效果
+- 深色侧边栏 + 对话历史管理
+- 移除 `@heroicons/react`，改用内联 SVG，First Load JS 从 530kB → 147kB
+
+### 🔧 工程化
+
+- 移除 Firebase Auth 依赖，切换为 `localStorage` 本地存储（便于开发调试）
+- 修复 `.env.local` 变量名大小写问题（`DeepSeek_API_KEY` → `DEEPSEEK_API_KEY`）
+- 删除遗留代码：`MarkdownContent.tsx`、`StatusIndicator.tsx`、`Auth.tsx`
+- 修复重复 key bug（`userMessage` 被添加两次）
+
+### 📦 依赖变更
+
+- ➕ `react-markdown`、`remark-gfm`（Markdown 渲染）
+- ➖ `@heroicons/react`（改用内联 SVG）
+- 保留 `firebase`（暂未启用，后续需要时可快速接入）
+
+---
+
+## [v0.1.0] - 初始版本
+
+- 基于 Next.js 15 创建项目
+- DeepSeek Chat API 集成
+- Firebase Auth 登录
+- Firestore 对话存储
+- 基础聊天 UI
+
+---
+
+# Roadmap
+
+以下是后续计划优化的方向，按优先级排列。
+
+## P0 — 核心功能
+
+- [ ] **对话上下文管理**：优化上下文窗口策略（当前硬截断最近 10 条）
+- [ ] **错误重试机制**：网络失败 / API 超时时自动重试
+- [ ] **消息编辑 & 重新生成**：允许用户编辑已发送的消息并重新获取回复
+
+## P1 — 用户体验
+
+- [ ] **代码高亮**：为 Markdown 代码块添加语法高亮（轻量方案）
+- [ ] **移动端适配**：优化触屏交互和小屏布局
+- [ ] **快捷键支持**：`Ctrl+N` 新建对话，`Ctrl+/` 聚焦输入框等
+- [ ] **对话搜索**：在侧边栏支持搜索历史对话
+
+## P2 — 基础设施
+
+- [ ] **认证系统**：重新接入 OAuth 登录（Google / GitHub）
+- [ ] **云端存储**：从 localStorage 迁移到 Supabase 或 Firebase
+- [ ] **部署**：配置 Vercel 部署，添加 CI/CD
+
+## P3 — 高级功能
+
+- [ ] **多模型支持**：允许切换 DeepSeek / GPT / Claude 等模型
+- [ ] **文件上传**：支持上传图片和文档进行分析
+- [ ] **对话导出**：支持导出为 Markdown / PDF

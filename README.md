@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chatbot — AI 对话助手
 
-## Getting Started
+基于 Next.js + DeepSeek API 构建的 AI 聊天机器人。
 
-First, run the development server:
+## 技术栈
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| 层级 | 技术 |
+|------|------|
+| 框架 | Next.js 15 (App Router) |
+| 语言 | TypeScript |
+| 样式 | Tailwind CSS + CSS Variables |
+| AI 模型 | DeepSeek Chat (通过 OpenAI SDK) |
+| 数据存储 | localStorage（本地开发阶段） |
+
+## 项目结构
+
+```
+src/
+├── app/
+│   ├── api/chat/route.ts    # 服务端 API 路由（流式响应）
+│   ├── globals.css          # 全局样式 + 设计系统
+│   ├── layout.tsx           # 根布局
+│   └── page.tsx             # 主页面（布局容器）
+├── components/
+│   ├── chat/
+│   │   ├── ChatWindow.tsx   # 消息展示区
+│   │   └── ChatInput.tsx    # 输入框
+│   └── layout/
+│       └── Sidebar.tsx      # 侧边栏（对话历史）
+├── hooks/
+│   └── useChat.ts           # 核心逻辑 Hook
+├── lib/
+│   ├── api.ts               # API 客户端（调用 /api/chat）
+│   └── firebase.ts          # Firebase 配置（暂未启用）
+└── types/
+    └── chat.ts              # 类型定义
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 快速开始
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# 安装依赖
+npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# 配置环境变量
+cp .env.local.example .env.local
+# 编辑 .env.local，填入你的 DeepSeek API Key
 
-## Learn More
+# 启动开发服务器
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+访问 [http://localhost:3000](http://localhost:3000)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 环境变量
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| 变量名 | 必填 | 说明 |
+|--------|------|------|
+| `DEEPSEEK_API_KEY` | ✅ | DeepSeek API 密钥 |
 
-## Deploy on Vercel
+## 架构说明
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **API 安全**：API Key 仅在服务端 (`route.ts`) 使用，前端通过 `fetch('/api/chat')` 间接调用
+- **流式响应**：服务端使用 `ReadableStream` 实现打字机效果
+- **状态管理**：`useChat` Hook 统一管理认证、对话 CRUD、消息收发
+- **数据持久化**：当前使用 `localStorage`，后续将接入 Firebase/Supabase
