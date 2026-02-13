@@ -57,6 +57,9 @@ npm run dev
 | 变量名 | 必填 | 说明 |
 |--------|------|------|
 | `DEEPSEEK_API_KEY` | ✅ | DeepSeek API 密钥 |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase 项目 URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase 匿名 Key（客户端使用） |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase 管理员 Key（仅服务端） |
 
 ## 架构说明
 
