@@ -1,14 +1,14 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 
-const apiKey = process.env.OPENAI_API_KEY
+const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY
 
 if (!apiKey) {
-  console.error('警告: OPENAI_API_KEY 环境变量未设置')
+  console.error('警告: DEEPSEEK_API_KEY 或 OPENAI_API_KEY 环境变量未设置')
 }
 
 const openai = new OpenAI({
-  apiKey: apiKey || 'sk-dc76621f0d1c4f9cb45064cf944c1455',
+  apiKey: apiKey || 'dummy-key-for-build',
   baseURL: 'https://api.deepseek.com'
 })
 
@@ -45,50 +45,56 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
-    console.log('接收到的消息:', messages)
-    
+
     if (!messages || !Array.isArray(messages)) {
-      console.error('无效的请求格式')
       return NextResponse.json(
-        { error: 'Invalid request format' },
+        { error: 'Invalid messages format' },
         { status: 400 }
       )
     }
 
     const recentMessages = messages.slice(-5)
-    console.log('处理后的消息:', recentMessages)
-    
+
     const formattedMessages = [
       { role: 'system', content: SYSTEM_PROMPT },
       ...recentMessages
     ]
-    
-    console.log('调用 Deepseek API...')
-    try {
-      // 先尝试非流式响应
-      const response = await openai.chat.completions.create({
-        model: 'deepseek-chat',
-        messages: formattedMessages,
-        temperature: 0.3,
-        max_tokens: 200,
-        presence_penalty: 0,
-        frequency_penalty: 0,
-        stream: false  // 先使用非流式响应进行测试
-      })
 
-      console.log('API 响应成功:', response.choices[0]?.message)
-      return NextResponse.json(response.choices[0]?.message)
-    } catch (apiError) {
-      console.error('Deepseek API 错误:', apiError)
-      throw apiError
-    }
-  } catch (error) {
-    console.error('处理错误:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to get response',
-        details: error instanceof Error ? error.message : 'Unknown error'
+    const response = await openai.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: formattedMessages as any,
+      temperature: 0.7,
+      max_tokens: 2000,
+      presence_penalty: 0.1,
+      frequency_penalty: 0.1,
+      stream: true,
+    })
+
+    // Create a TransformStream to handle the streaming response
+    const stream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of response) {
+          const content = chunk.choices[0]?.delta?.content || ''
+          if (content) {
+            controller.enqueue(new TextEncoder().encode(content))
+          }
+        }
+        controller.close()
       },
+    })
+
+    return new NextResponse(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
+
+  } catch (error) {
+    console.error('API Error:', error)
+    return NextResponse.json(
+      { error: 'Internal Server Error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     )
   }

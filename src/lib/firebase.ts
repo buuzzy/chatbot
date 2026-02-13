@@ -34,18 +34,18 @@ if (typeof window !== 'undefined') {
   // 服务器端的空实现
   app = {} as unknown as FirebaseApp
   auth = {
-    onAuthStateChanged: () => () => {},
-    signOut: async () => {},
+    onAuthStateChanged: () => () => { },
+    signOut: async () => { },
     currentUser: null,
     app: {} as FirebaseApp,
     name: 'auth',
     config: {},
-    setPersistence: async () => {},
+    setPersistence: async () => { },
     languageCode: null,
     emulatorConfig: null,
     settings: { appVerificationDisabledForTesting: false },
     tenantId: null,
-    useDeviceLanguage: () => {},
+    useDeviceLanguage: () => { },
   } as unknown as Auth
   db = {} as unknown as Firestore
 }
