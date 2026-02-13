@@ -1,13 +1,16 @@
 'use client'
 
 import React, { useRef } from 'react'
+import { ModelId } from '@/types/chat'
 
 interface ChatInputProps {
     onSend: (content: string) => void
     isLoading: boolean
+    currentModel: ModelId
+    onModelChange: (model: ModelId) => void
 }
 
-export function ChatInput({ onSend, isLoading }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, currentModel, onModelChange }: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const handleSubmit = () => {
@@ -34,12 +37,51 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
         }
     }
 
+    const models: { id: ModelId; label: string; icon: string; desc: string }[] = [
+        { id: 'deepseek-chat', label: '快速', icon: '⚡', desc: '响应迅速' },
+        { id: 'deepseek-reasoner', label: '深度思考', icon: '🧠', desc: '推理能力更强' },
+    ]
+
     return (
         <div style={{
             maxWidth: '768px',
             margin: '0 auto',
             padding: '12px 16px 20px',
         }}>
+            {/* Model Selector */}
+            <div style={{
+                display: 'flex',
+                gap: '6px',
+                marginBottom: '8px',
+            }}>
+                {models.map(m => (
+                    <button
+                        key={m.id}
+                        onClick={() => onModelChange(m.id)}
+                        title={m.desc}
+                        style={{
+                            padding: '4px 12px',
+                            borderRadius: '16px',
+                            border: '1px solid',
+                            borderColor: currentModel === m.id ? 'var(--color-accent)' : 'var(--color-border)',
+                            background: currentModel === m.id ? 'var(--color-accent)' : 'transparent',
+                            color: currentModel === m.id ? '#fff' : 'var(--color-text-secondary)',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                    >
+                        <span>{m.icon}</span>
+                        <span>{m.label}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Input Area */}
             <div style={{
                 display: 'flex',
                 alignItems: 'flex-end',
@@ -63,7 +105,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
                 <textarea
                     ref={textareaRef}
                     rows={1}
-                    placeholder="输入消息..."
+                    placeholder={currentModel === 'deepseek-reasoner' ? '输入需要深度思考的问题...' : '输入消息...'}
                     onKeyDown={handleKeyDown}
                     onChange={adjustHeight}
                     disabled={isLoading}

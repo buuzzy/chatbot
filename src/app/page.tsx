@@ -13,6 +13,8 @@ export default function Home() {
     chats,
     currentChatId,
     setCurrentChatId,
+    currentModel,
+    setCurrentModel,
     isLoading,
     isLoadingChats,
     error,
@@ -155,6 +157,8 @@ export default function Home() {
               }
             }}
             isLoading={isLoading}
+            currentModel={currentModel}
+            onModelChange={setCurrentModel}
           />
         </div>
       </div>

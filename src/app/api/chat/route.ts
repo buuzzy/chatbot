@@ -44,7 +44,7 @@ const SYSTEM_PROMPT = `请以结构化的方式回答问题，遵循以下格式
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    const { messages, model = 'deepseek-chat' } = await req.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -53,39 +53,66 @@ export async function POST(req: Request) {
       )
     }
 
+    const isReasoner = model === 'deepseek-reasoner'
     const recentMessages = messages.slice(-5)
 
+    // Strip reasoning_content from messages to avoid 400 error
+    const cleanMessages = recentMessages.map(({ role, content }: { role: string; content: string }) => ({
+      role,
+      content,
+    }))
+
     const formattedMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...recentMessages
+      // Reasoner doesn't benefit from system prompt formatting constraints
+      ...(isReasoner ? [] : [{ role: 'system', content: SYSTEM_PROMPT }]),
+      ...cleanMessages,
     ]
 
-    const response = await openai.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: formattedMessages as any,
-      temperature: 0.7,
-      max_tokens: 2000,
-      presence_penalty: 0.1,
-      frequency_penalty: 0.1,
+    // Reasoner: no temperature/top_p/penalty params
+    const createParams: any = {
+      model,
+      messages: formattedMessages,
+      max_tokens: isReasoner ? 8192 : 2000,
       stream: true,
-    })
+    }
 
-    // Create a TransformStream to handle the streaming response
+    if (!isReasoner) {
+      createParams.temperature = 0.7
+      createParams.presence_penalty = 0.1
+      createParams.frequency_penalty = 0.1
+    }
+
+    const response = await openai.chat.completions.create(createParams) as any
+
+    // SSE stream: differentiate reasoning_content vs content
     const stream = new ReadableStream({
       async start(controller) {
+        const encoder = new TextEncoder()
         for await (const chunk of response) {
-          const content = chunk.choices[0]?.delta?.content || ''
-          if (content) {
-            controller.enqueue(new TextEncoder().encode(content))
+          const delta = chunk.choices[0]?.delta
+
+          // Reasoning content (thinking chain)
+          if (delta?.reasoning_content) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'reasoning', content: delta.reasoning_content })}\n\n`)
+            )
+          }
+
+          // Final content
+          if (delta?.content) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'content', content: delta.content })}\n\n`)
+            )
           }
         }
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
         controller.close()
       },
     })
 
     return new NextResponse(stream, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       },
@@ -100,7 +127,6 @@ export async function POST(req: Request) {
   }
 }
 
-// 添加 GET 处理以避免 404
 export async function GET() {
   return NextResponse.json({ status: 'API is running' })
-} 
+}

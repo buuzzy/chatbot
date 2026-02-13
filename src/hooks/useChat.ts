@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { chatCompletion } from '@/lib/api'
-import { Chat, Message } from '@/types/chat'
+import { Chat, Message, ModelId } from '@/types/chat'
 import type { User } from '@supabase/supabase-js'
 
 const supabase = createBrowserSupabaseClient()
@@ -13,6 +13,7 @@ export function useChat() {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<{ type: 'error' | 'network-error'; message?: string } | null>(null)
     const [isLoadingChats, setIsLoadingChats] = useState(true)
+    const [currentModel, setCurrentModel] = useState<ModelId>('deepseek-chat')
 
     // Auth listener
     useEffect(() => {
@@ -169,6 +170,7 @@ export function useChat() {
 
             const response = await chatCompletion(
                 apiMessages.slice(-10) as any,
+                currentModel,
                 controller.signal,
                 (streamContent) => {
                     setChats(prev =>
@@ -184,14 +186,34 @@ export function useChat() {
                             return c
                         })
                     )
+                },
+                (reasoningContent) => {
+                    setChats(prev =>
+                        prev.map(c => {
+                            if (c.id === currentChatId) {
+                                return {
+                                    ...c,
+                                    messages: c.messages.map(m =>
+                                        m.id === assistantMessageId ? { ...m, reasoningContent } : m
+                                    ),
+                                }
+                            }
+                            return c
+                        })
+                    )
                 }
             )
 
             // Build final messages
-            const finalMessages = [
+            const finalMessages: Message[] = [
                 ...history,
                 userMessage,
-                { id: assistantMessageId, role: 'assistant' as const, content: response.content },
+                {
+                    id: assistantMessageId,
+                    role: 'assistant' as const,
+                    content: response.content,
+                    ...(response.reasoningContent ? { reasoningContent: response.reasoningContent } : {}),
+                },
             ]
 
             // Auto-title
@@ -237,6 +259,8 @@ export function useChat() {
         chats,
         currentChatId,
         setCurrentChatId,
+        currentModel,
+        setCurrentModel,
         isLoading,
         isLoadingChats,
         error,

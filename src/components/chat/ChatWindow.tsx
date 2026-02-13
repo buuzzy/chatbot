@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Message } from '@/types/chat'
 import ReactMarkdown from 'react-markdown'
 // @ts-ignore
@@ -10,6 +10,77 @@ interface ChatWindowProps {
     messages: Message[]
     isLoading: boolean
     error: { type: string; message?: string } | null
+}
+
+function ThinkingBlock({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+    const [collapsed, setCollapsed] = useState(false)
+
+    return (
+        <div style={{
+            marginBottom: '8px',
+            borderRadius: '12px',
+            border: '1px solid rgba(139, 92, 246, 0.15)',
+            background: 'rgba(139, 92, 246, 0.04)',
+            overflow: 'hidden',
+        }}>
+            {/* Header */}
+            <button
+                onClick={() => setCollapsed(!collapsed)}
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#8b5cf6',
+                    textAlign: 'left',
+                }}
+            >
+                <span style={{
+                    transition: 'transform 0.2s',
+                    transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                    display: 'inline-block',
+                    fontSize: '10px',
+                }}>
+                    ▼
+                </span>
+                <span>🧠 思考过程</span>
+                {isStreaming && (
+                    <span style={{
+                        display: 'inline-block',
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: '#8b5cf6',
+                        animation: 'pulse-dot 1.2s ease-in-out infinite',
+                        marginLeft: '4px',
+                    }} />
+                )}
+            </button>
+
+            {/* Content */}
+            {!collapsed && (
+                <div style={{
+                    padding: '0 12px 10px',
+                    fontSize: '13px',
+                    lineHeight: '1.7',
+                    color: 'var(--color-text-secondary)',
+                    fontStyle: 'italic',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                }}>
+                    {content}
+                </div>
+            )}
+        </div>
+    )
 }
 
 export function ChatWindow({ messages, isLoading, error }: ChatWindowProps) {
@@ -63,50 +134,65 @@ export function ChatWindow({ messages, isLoading, error }: ChatWindowProps) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '16px 0' }}>
-            {messages.map((msg, index) => (
-                <div
-                    key={msg.id || index}
-                    className="animate-fade-in-up"
-                    style={{
-                        display: 'flex',
-                        justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                        padding: '4px 0',
-                    }}
-                >
-                    <div style={{
-                        maxWidth: msg.role === 'user' ? '75%' : '85%',
-                        padding: msg.role === 'user' ? '10px 16px' : '12px 16px',
-                        borderRadius: msg.role === 'user'
-                            ? '18px 18px 4px 18px'
-                            : '18px 18px 18px 4px',
-                        background: msg.role === 'user'
-                            ? 'var(--color-user-bubble)'
-                            : 'var(--color-ai-bubble)',
-                        color: msg.role === 'user'
-                            ? 'var(--color-user-bubble-text)'
-                            : 'var(--color-ai-bubble-text)',
-                        boxShadow: 'var(--shadow-sm)',
-                        fontSize: '14px',
-                        lineHeight: '1.6',
-                        wordBreak: 'break-word',
-                    }}>
-                        {msg.role === 'user' ? (
-                            <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
-                        ) : (
-                            <div className="prose" style={{ maxWidth: 'none', fontSize: '14px' }}>
-                                <ReactMarkdown
-                                    // @ts-ignore
-                                    remarkPlugins={[remarkGfm]}
-                                >
-                                    {msg.content}
-                                </ReactMarkdown>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            ))}
+            {messages.map((msg, index) => {
+                const isLastAssistant = msg.role === 'assistant' && index === messages.length - 1
 
-            {isLoading && (
+                return (
+                    <div
+                        key={msg.id || index}
+                        className="animate-fade-in-up"
+                        style={{
+                            display: 'flex',
+                            justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                            padding: '4px 0',
+                        }}
+                    >
+                        <div style={{
+                            maxWidth: msg.role === 'user' ? '75%' : '85%',
+                            padding: msg.role === 'user' ? '10px 16px' : '12px 16px',
+                            borderRadius: msg.role === 'user'
+                                ? '18px 18px 4px 18px'
+                                : '18px 18px 18px 4px',
+                            background: msg.role === 'user'
+                                ? 'var(--color-user-bubble)'
+                                : 'var(--color-ai-bubble)',
+                            color: msg.role === 'user'
+                                ? 'var(--color-user-bubble-text)'
+                                : 'var(--color-ai-bubble-text)',
+                            boxShadow: 'var(--shadow-sm)',
+                            fontSize: '14px',
+                            lineHeight: '1.6',
+                            wordBreak: 'break-word',
+                        }}>
+                            {msg.role === 'user' ? (
+                                <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                            ) : (
+                                <>
+                                    {/* Thinking process */}
+                                    {msg.reasoningContent && (
+                                        <ThinkingBlock
+                                            content={msg.reasoningContent}
+                                            isStreaming={isLastAssistant && isLoading && !msg.content}
+                                        />
+                                    )}
+
+                                    {/* Final answer */}
+                                    <div className="prose" style={{ maxWidth: 'none', fontSize: '14px' }}>
+                                        <ReactMarkdown
+                                            // @ts-ignore
+                                            remarkPlugins={[remarkGfm]}
+                                        >
+                                            {msg.content}
+                                        </ReactMarkdown>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )
+            })}
+
+            {isLoading && messages[messages.length - 1]?.role === 'user' && (
                 <div className="animate-fade-in-up" style={{
                     display: 'flex',
                     justifyContent: 'flex-start',

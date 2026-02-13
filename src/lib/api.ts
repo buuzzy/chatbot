@@ -1,7 +1,9 @@
 /**
- * Chat API client - calls our own /api/chat route (server-side)
- * instead of directly calling DeepSeek from the browser.
+ * Chat API client — calls /api/chat with model selection.
+ * Parses SSE stream, distinguishing reasoning (thinking) vs content events.
  */
+
+import { ModelId } from '@/types/chat'
 
 export type ChatMessage = {
   role: 'user' | 'assistant' | 'system'
@@ -12,13 +14,15 @@ export type StreamCallback = (content: string) => void
 
 export async function chatCompletion(
   messages: ChatMessage[],
+  model: ModelId,
   signal?: AbortSignal,
-  onStream?: StreamCallback
-): Promise<{ content: string; role: string }> {
+  onStream?: StreamCallback,
+  onReasoningStream?: StreamCallback,
+): Promise<{ content: string; reasoningContent: string; role: string }> {
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, model }),
     signal,
   })
 
@@ -30,7 +34,6 @@ export async function chatCompletion(
     }))
   }
 
-  // Handle streaming response
   const reader = response.body?.getReader()
   if (!reader) {
     throw new Error('Response body is null')
@@ -38,15 +41,38 @@ export async function chatCompletion(
 
   const decoder = new TextDecoder()
   let fullContent = ''
+  let fullReasoning = ''
+  let buffer = ''
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
 
-    const chunk = decoder.decode(value, { stream: true })
-    fullContent += chunk
-    onStream?.(fullContent)
+    buffer += decoder.decode(value, { stream: true })
+
+    // Process complete SSE lines
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const data = line.slice(6)
+      if (data === '[DONE]') continue
+
+      try {
+        const parsed = JSON.parse(data)
+        if (parsed.type === 'reasoning') {
+          fullReasoning += parsed.content
+          onReasoningStream?.(fullReasoning)
+        } else if (parsed.type === 'content') {
+          fullContent += parsed.content
+          onStream?.(fullContent)
+        }
+      } catch {
+        // Skip malformed JSON
+      }
+    }
   }
 
-  return { content: fullContent, role: 'assistant' }
+  return { content: fullContent, reasoningContent: fullReasoning, role: 'assistant' }
 }
