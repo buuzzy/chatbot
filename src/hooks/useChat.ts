@@ -229,6 +229,7 @@ export function useChat() {
         setUser(null)
         setChats([])
         setCurrentChatId('')
+        window.location.href = '/login'
     }
 
     return {

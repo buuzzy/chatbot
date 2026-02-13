@@ -25,14 +25,19 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [setupDone, setSetupDone] = useState(false)
 
-  // Auto-setup: trigger table creation on first load
+  // Auto-setup: trigger table creation on first load (per session)
   useEffect(() => {
     if (user && !setupDone) {
+      if (sessionStorage.getItem('supabase_setup_done')) {
+        setSetupDone(true)
+        return
+      }
       fetch('/api/setup')
         .then(res => res.json())
         .then(data => {
           console.log('Setup:', data.message)
           setSetupDone(true)
+          sessionStorage.setItem('supabase_setup_done', '1')
         })
         .catch(err => console.error('Setup failed:', err))
     }

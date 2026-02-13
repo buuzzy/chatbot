@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createAdminSupabaseClient } from '@/lib/supabase'
 
 const SETUP_SQL = `
--- Create chats table if not exists
 CREATE TABLE IF NOT EXISTS public.chats (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -11,10 +9,8 @@ CREATE TABLE IF NOT EXISTS public.chats (
   created_at timestamptz DEFAULT now()
 );
 
--- Enable RLS
 ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
 
--- RLS policies (use IF NOT EXISTS via DO block)
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -46,81 +42,65 @@ BEGIN
   END IF;
 END $$;
 
--- Index for faster queries
 CREATE INDEX IF NOT EXISTS idx_chats_user_id ON public.chats(user_id);
 CREATE INDEX IF NOT EXISTS idx_chats_created_at ON public.chats(created_at DESC);
 `
 
 export async function GET() {
-    try {
-        const admin = createAdminSupabaseClient()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-        // Check if table already exists
-        const { data: tables } = await admin
-            .from('information_schema.tables' as any)
-            .select('table_name')
-            .eq('table_schema', 'public')
-            .eq('table_name', 'chats')
-            .single()
+  if (!supabaseUrl || !serviceRoleKey) {
+    return NextResponse.json(
+      { status: 'error', message: 'Missing Supabase configuration' },
+      { status: 500 }
+    )
+  }
 
-        if (tables) {
-            return NextResponse.json({ status: 'ok', message: 'Tables already exist' })
-        }
+  try {
+    // Use Supabase's pg-meta SQL execution endpoint
+    const response = await fetch(`${supabaseUrl}/pg/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+      },
+      body: JSON.stringify({ query: SETUP_SQL }),
+    })
 
-        // Run setup SQL
-        const { error } = await admin.rpc('exec_sql', { sql: SETUP_SQL }).single()
-
-        // If rpc doesn't exist, fall back to direct SQL via REST
-        if (error) {
-            // Use the admin client's postgrest to run raw SQL
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
-                        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-                    },
-                    body: JSON.stringify({}),
-                }
-            )
-
-            // If that also fails, try the SQL endpoint directly
-            if (!response.ok) {
-                const sqlResponse = await fetch(
-                    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/pg`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY!,
-                            'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-                        },
-                        body: JSON.stringify({ query: SETUP_SQL }),
-                    }
-                )
-
-                if (!sqlResponse.ok) {
-                    // Last resort: inform user to run SQL manually
-                    return NextResponse.json(
-                        {
-                            status: 'manual_setup_required',
-                            message: 'Auto-setup failed. Please run the SQL below in Supabase SQL Editor.',
-                            sql: SETUP_SQL
-                        },
-                        { status: 200 }
-                    )
-                }
-            }
-        }
-
-        return NextResponse.json({ status: 'ok', message: 'Tables created successfully' })
-    } catch (err) {
-        console.error('Setup error:', err)
-        return NextResponse.json(
-            { status: 'error', message: err instanceof Error ? err.message : 'Unknown error' },
-            { status: 500 }
-        )
+    if (response.ok) {
+      return NextResponse.json({ status: 'ok', message: 'Tables created successfully' })
     }
+
+    // Fallback: try the /rest/v1/rpc endpoint (won't work for DDL but let's try)
+    // If pg/query doesn't exist, try the pg endpoint
+    const pgResponse = await fetch(`${supabaseUrl}/pg`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+      },
+      body: JSON.stringify({ query: SETUP_SQL }),
+    })
+
+    if (pgResponse.ok) {
+      return NextResponse.json({ status: 'ok', message: 'Tables created successfully' })
+    }
+
+    // All methods failed — return SQL for manual execution
+    return NextResponse.json({
+      status: 'manual_setup_required',
+      message: 'Auto-setup not available. Please run the SQL below in Supabase Dashboard → SQL Editor.',
+      sql: SETUP_SQL.trim(),
+    })
+  } catch (err) {
+    console.error('Setup error:', err)
+    return NextResponse.json({
+      status: 'manual_setup_required',
+      message: 'Auto-setup failed. Please run the SQL below in Supabase Dashboard → SQL Editor.',
+      sql: SETUP_SQL.trim(),
+    })
+  }
 }
