@@ -9,9 +9,10 @@ interface ChatInputProps {
     isLoading: boolean
     currentModel: ModelId
     onModelChange: (model: ModelId) => void
+    hideModelSelector?: boolean
 }
 
-export function ChatInput({ onSend, onStop, isLoading, currentModel, onModelChange }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, isLoading, currentModel, onModelChange, hideModelSelector }: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const handleSubmit = () => {
@@ -49,38 +50,40 @@ export function ChatInput({ onSend, onStop, isLoading, currentModel, onModelChan
             margin: '0 auto',
             padding: '12px 16px 20px',
         }}>
-            {/* Model Selector */}
-            <div style={{
-                display: 'flex',
-                gap: '6px',
-                marginBottom: '8px',
-            }}>
-                {models.map(m => (
-                    <button
-                        key={m.id}
-                        onClick={() => onModelChange(m.id)}
-                        title={m.desc}
-                        style={{
-                            padding: '4px 12px',
-                            borderRadius: '16px',
-                            border: '1px solid',
-                            borderColor: currentModel === m.id ? 'var(--color-accent)' : 'var(--color-border)',
-                            background: currentModel === m.id ? 'var(--color-accent)' : 'transparent',
-                            color: currentModel === m.id ? '#fff' : 'var(--color-text-secondary)',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                        }}
-                    >
-                        <span>{m.icon}</span>
-                        <span>{m.label}</span>
-                    </button>
-                ))}
-            </div>
+            {/* Model Selector — hidden when using custom API */}
+            {!hideModelSelector && (
+                <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    marginBottom: '8px',
+                }}>
+                    {models.map(m => (
+                        <button
+                            key={m.id}
+                            onClick={() => onModelChange(m.id)}
+                            title={m.desc}
+                            style={{
+                                padding: '4px 12px',
+                                borderRadius: '16px',
+                                border: '1px solid',
+                                borderColor: currentModel === m.id ? 'var(--color-accent)' : 'var(--color-border)',
+                                background: currentModel === m.id ? 'var(--color-accent)' : 'transparent',
+                                color: currentModel === m.id ? '#fff' : 'var(--color-text-secondary)',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                            }}
+                        >
+                            <span>{m.icon}</span>
+                            <span>{m.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {/* Input Area */}
             <div style={{

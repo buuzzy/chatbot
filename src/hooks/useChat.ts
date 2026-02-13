@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
-import { chatCompletion } from '@/lib/api'
+import { chatCompletion, ApiConfigPayload } from '@/lib/api'
 import { Chat, Message, ModelId } from '@/types/chat'
 import type { User } from '@supabase/supabase-js'
 
@@ -149,7 +149,7 @@ export function useChat() {
     }
 
     // Send message
-    const handleSendMessage = async (content: string, systemPrompt?: string | null) => {
+    const handleSendMessage = async (content: string, systemPrompt?: string | null, apiConfig?: ApiConfigPayload | null) => {
         if (!content.trim() || isLoading || !currentChatId || !user) return
 
         const userMessage: Message = {
@@ -194,6 +194,7 @@ export function useChat() {
                 apiMessages.slice(-10) as any,
                 currentModel,
                 systemPrompt,
+                apiConfig,
                 controller.signal,
                 (streamContent) => {
                     setChats(prev =>

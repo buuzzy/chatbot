@@ -90,6 +90,53 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_prompts_user_id ON public.prompts(user_id);
+
+-- API Configs table
+CREATE TABLE IF NOT EXISTS public.api_configs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider text NOT NULL CHECK (provider IN ('openai', 'claude', 'gemini', 'custom')),
+  name text NOT NULL,
+  api_url text NOT NULL,
+  api_key text NOT NULL,
+  is_active boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.api_configs ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'api_configs' AND policyname = 'Users can read own api_configs'
+  ) THEN
+    CREATE POLICY "Users can read own api_configs" ON public.api_configs
+      FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'api_configs' AND policyname = 'Users can insert own api_configs'
+  ) THEN
+    CREATE POLICY "Users can insert own api_configs" ON public.api_configs
+      FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'api_configs' AND policyname = 'Users can update own api_configs'
+  ) THEN
+    CREATE POLICY "Users can update own api_configs" ON public.api_configs
+      FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'api_configs' AND policyname = 'Users can delete own api_configs'
+  ) THEN
+    CREATE POLICY "Users can delete own api_configs" ON public.api_configs
+      FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_api_configs_user_id ON public.api_configs(user_id);
 `
 
 export async function GET() {

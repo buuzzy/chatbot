@@ -14,6 +14,8 @@ interface SidebarProps {
     isLoading: boolean
     user: User | null
     onLogout: () => void
+    onOpenPromptManager: () => void
+    onOpenApiConfig: () => void
 }
 
 export function Sidebar({
@@ -26,8 +28,11 @@ export function Sidebar({
     isLoading,
     user,
     onLogout,
+    onOpenPromptManager,
+    onOpenApiConfig,
 }: SidebarProps) {
     const [editingId, setEditingId] = useState<string | null>(null)
+    const [menuOpen, setMenuOpen] = useState(false)
     const [editValue, setEditValue] = useState('')
 
     const startEditing = (chat: Chat) => {
@@ -273,21 +278,83 @@ export function Sidebar({
                         {user?.user_metadata?.full_name || user?.email || 'User'}
                     </div>
                 </div>
-                <button
-                    onClick={onLogout}
-                    title="退出登录"
-                    style={{
-                        background: 'none', border: 'none', color: '#64748b',
-                        cursor: 'pointer', padding: '4px', lineHeight: 0,
-                        transition: 'color 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </button>
+                <div style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setMenuOpen(!menuOpen)}
+                        title="更多选项"
+                        style={{
+                            background: 'none', border: 'none', color: '#64748b',
+                            cursor: 'pointer', padding: '4px', lineHeight: 0,
+                            transition: 'color 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                        </svg>
+                    </button>
+
+                    {/* Popover menu */}
+                    {menuOpen && (
+                        <>
+                            <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 60 }} />
+                            <div style={{
+                                position: 'absolute', bottom: '100%', right: 0,
+                                marginBottom: '6px', minWidth: '160px',
+                                background: '#1e293b', border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: '10px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                padding: '4px', zIndex: 61,
+                            }}>
+                                <button
+                                    onClick={() => { setMenuOpen(false); onOpenPromptManager() }}
+                                    style={{
+                                        width: '100%', textAlign: 'left', padding: '8px 12px',
+                                        background: 'none', border: 'none', color: '#e2e8f0',
+                                        cursor: 'pointer', fontSize: '13px', borderRadius: '6px',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                                >
+                                    📋 配置提示词
+                                </button>
+                                <button
+                                    onClick={() => { setMenuOpen(false); onOpenApiConfig() }}
+                                    style={{
+                                        width: '100%', textAlign: 'left', padding: '8px 12px',
+                                        background: 'none', border: 'none', color: '#e2e8f0',
+                                        cursor: 'pointer', fontSize: '13px', borderRadius: '6px',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                                >
+                                    🔑 配置 API
+                                </button>
+                                <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />
+                                <button
+                                    onClick={() => { setMenuOpen(false); onLogout() }}
+                                    style={{
+                                        width: '100%', textAlign: 'left', padding: '8px 12px',
+                                        background: 'none', border: 'none', color: '#ef4444',
+                                        cursor: 'pointer', fontSize: '13px', borderRadius: '6px',
+                                        display: 'flex', alignItems: 'center', gap: '8px',
+                                        transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                                >
+                                    🚪 退出账号
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     )

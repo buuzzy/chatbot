@@ -1,9 +1,10 @@
 /**
  * Chat API client — calls /api/chat with model selection.
  * Parses SSE stream, distinguishing reasoning (thinking) vs content events.
+ * Supports multi-provider routing via optional apiConfig.
  */
 
-import { ModelId } from '@/types/chat'
+import { ModelId, ApiProvider } from '@/types/chat'
 
 export type ChatMessage = {
   role: 'user' | 'assistant' | 'system'
@@ -12,10 +13,17 @@ export type ChatMessage = {
 
 export type StreamCallback = (content: string) => void
 
+export interface ApiConfigPayload {
+  provider: ApiProvider
+  apiUrl: string
+  apiKey: string
+}
+
 export async function chatCompletion(
   messages: ChatMessage[],
   model: ModelId,
   systemPrompt?: string | null,
+  apiConfig?: ApiConfigPayload | null,
   signal?: AbortSignal,
   onStream?: StreamCallback,
   onReasoningStream?: StreamCallback,
@@ -23,7 +31,7 @@ export async function chatCompletion(
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, model, systemPrompt }),
+    body: JSON.stringify({ messages, model, systemPrompt, apiConfig }),
     signal,
   })
 

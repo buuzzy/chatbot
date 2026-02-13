@@ -2,13 +2,15 @@
 
 import { useChat } from '@/hooks/useChat'
 import { usePrompts } from '@/hooks/usePrompts'
+import { useApiConfig } from '@/hooks/useApiConfig'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatWindow } from '@/components/chat/ChatWindow'
 import { ChatInput } from '@/components/chat/ChatInput'
-import { PromptSelector } from '@/components/prompt/PromptSelector'
 import { PromptManager } from '@/components/prompt/PromptManager'
+import { ApiConfigManager } from '@/components/settings/ApiConfigManager'
 import { useState, useEffect } from 'react'
 import { Message } from '@/types/chat'
+import type { ApiConfigPayload } from '@/lib/api'
 
 export default function Home() {
   const {
@@ -39,9 +41,19 @@ export default function Home() {
     deletePrompt,
   } = usePrompts(user)
 
+  const {
+    configs,
+    activeConfig,
+    createConfig,
+    updateConfig,
+    deleteConfig,
+    setActiveConfig,
+  } = useApiConfig(user)
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [setupDone, setSetupDone] = useState(false)
   const [promptManagerOpen, setPromptManagerOpen] = useState(false)
+  const [apiConfigOpen, setApiConfigOpen] = useState(false)
 
   // Auto-setup: trigger table creation on first load (per session)
   useEffect(() => {
@@ -63,6 +75,20 @@ export default function Home() {
 
   const currentChat = chats.find(chat => chat.id === currentChatId)
   const messages: Message[] = currentChat?.messages || []
+
+  // Build apiConfig payload for non-DeepSeek providers
+  const apiConfigPayload: ApiConfigPayload | null = activeConfig
+    ? { provider: activeConfig.provider, apiUrl: activeConfig.apiUrl, apiKey: activeConfig.apiKey }
+    : null
+
+  const sendMessage = (content: string) => {
+    if (!currentChatId) {
+      handleNewChat()
+      setTimeout(() => handleSendMessage(content, activePrompt?.content, apiConfigPayload), 100)
+    } else {
+      handleSendMessage(content, activePrompt?.content, apiConfigPayload)
+    }
+  }
 
   return (
     <main style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
@@ -109,6 +135,8 @@ export default function Home() {
           isLoading={isLoadingChats}
           user={user}
           onLogout={handleLogout}
+          onOpenPromptManager={() => setPromptManagerOpen(true)}
+          onOpenApiConfig={() => setApiConfigOpen(true)}
         />
       </div>
 
@@ -164,26 +192,13 @@ export default function Home() {
 
         {/* Input Area */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
-          <div style={{ maxWidth: '768px', margin: '0 auto', padding: '4px 16px 0' }}>
-            <PromptSelector
-              prompts={prompts}
-              activePromptId={activePromptId}
-              onOpenManager={() => setPromptManagerOpen(true)}
-            />
-          </div>
           <ChatInput
-            onSend={(content) => {
-              if (!currentChatId) {
-                handleNewChat()
-                setTimeout(() => handleSendMessage(content, activePrompt?.content), 100)
-              } else {
-                handleSendMessage(content, activePrompt?.content)
-              }
-            }}
+            onSend={sendMessage}
             onStop={handleStopGeneration}
             isLoading={isLoading}
             currentModel={currentModel}
             onModelChange={setCurrentModel}
+            hideModelSelector={!!activeConfig}
           />
         </div>
       </div>
@@ -198,6 +213,19 @@ export default function Home() {
           onUpdate={updatePrompt}
           onDelete={deletePrompt}
           onClose={() => setPromptManagerOpen(false)}
+        />
+      )}
+
+      {/* API Config Modal */}
+      {apiConfigOpen && (
+        <ApiConfigManager
+          configs={configs}
+          activeConfig={activeConfig}
+          onActivate={setActiveConfig}
+          onCreate={createConfig}
+          onUpdate={updateConfig}
+          onDelete={deleteConfig}
+          onClose={() => setApiConfigOpen(false)}
         />
       )}
     </main>
