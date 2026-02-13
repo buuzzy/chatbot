@@ -4,11 +4,12 @@ import { useChat } from '@/hooks/useChat'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatWindow } from '@/components/chat/ChatWindow'
 import { ChatInput } from '@/components/chat/ChatInput'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Message } from '@/types/chat'
 
 export default function Home() {
   const {
+    user,
     chats,
     currentChatId,
     setCurrentChatId,
@@ -17,10 +18,25 @@ export default function Home() {
     error,
     handleNewChat,
     handleDeleteChat,
-    handleSendMessage
+    handleSendMessage,
+    handleLogout,
   } = useChat()
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [setupDone, setSetupDone] = useState(false)
+
+  // Auto-setup: trigger table creation on first load
+  useEffect(() => {
+    if (user && !setupDone) {
+      fetch('/api/setup')
+        .then(res => res.json())
+        .then(data => {
+          console.log('Setup:', data.message)
+          setSetupDone(true)
+        })
+        .catch(err => console.error('Setup failed:', err))
+    }
+  }, [user, setupDone])
 
   const currentChat = chats.find(chat => chat.id === currentChatId)
   const messages: Message[] = currentChat?.messages || []
@@ -42,15 +58,16 @@ export default function Home() {
       )}
 
       {/* Sidebar */}
-      <div style={{
-        position: mobileMenuOpen ? 'fixed' : undefined,
-        inset: mobileMenuOpen ? '0 auto 0 0' : undefined,
-        width: '260px',
-        flexShrink: 0,
-        zIndex: 50,
-        transform: mobileMenuOpen ? 'translateX(0)' : undefined,
-        transition: 'transform 0.2s ease',
-      }}
+      <div
+        style={{
+          position: mobileMenuOpen ? 'fixed' : undefined,
+          inset: mobileMenuOpen ? '0 auto 0 0' : undefined,
+          width: '260px',
+          flexShrink: 0,
+          zIndex: 50,
+          transform: mobileMenuOpen ? 'translateX(0)' : undefined,
+          transition: 'transform 0.2s ease',
+        }}
         className={`hidden md:block ${mobileMenuOpen ? '!block' : ''}`}
       >
         <Sidebar
@@ -66,26 +83,24 @@ export default function Home() {
           }}
           onDeleteChat={handleDeleteChat}
           isLoading={isLoadingChats}
+          user={user}
+          onLogout={handleLogout}
         />
       </div>
 
       {/* Main Content */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 0,
-      }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Mobile Header */}
-        <header style={{
-          height: '52px',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          background: 'var(--color-bg-secondary)',
-          flexShrink: 0,
-        }}
+        <header
+          style={{
+            height: '52px',
+            borderBottom: '1px solid var(--color-border)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 16px',
+            background: 'var(--color-bg-secondary)',
+            flexShrink: 0,
+          }}
           className="md:hidden"
         >
           <button
@@ -103,44 +118,33 @@ export default function Home() {
               <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
             </svg>
           </button>
-          <span style={{
-            fontWeight: 600,
-            fontSize: '15px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: '15px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {currentChat?.title || 'Chatbot'}
           </span>
         </header>
 
         {/* Chat Area */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0 16px',
-        }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
           <div style={{ maxWidth: '768px', margin: '0 auto', height: '100%' }}>
-            <ChatWindow
-              messages={messages}
-              isLoading={isLoading}
-              error={error}
-            />
+            <ChatWindow messages={messages} isLoading={isLoading} error={error} />
           </div>
         </div>
 
         {/* Input Area */}
-        <div style={{
-          flexShrink: 0,
-          borderTop: '1px solid var(--color-border)',
-          background: 'var(--color-bg)',
-        }}>
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
           <ChatInput
             onSend={(content) => {
               if (!currentChatId) {
                 handleNewChat()
-                // Small delay to ensure chat is created before sending
-                setTimeout(() => handleSendMessage(content), 50)
+                setTimeout(() => handleSendMessage(content), 100)
               } else {
                 handleSendMessage(content)
               }

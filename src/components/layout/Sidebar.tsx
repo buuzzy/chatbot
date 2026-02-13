@@ -1,6 +1,7 @@
 'use client'
 
 import { Chat } from '@/types/chat'
+import type { User } from '@supabase/supabase-js'
 
 interface SidebarProps {
     chats: Chat[]
@@ -9,6 +10,8 @@ interface SidebarProps {
     onNewChat: () => void
     onDeleteChat: (id: string) => void
     isLoading: boolean
+    user: User | null
+    onLogout: () => void
 }
 
 export function Sidebar({
@@ -17,7 +20,9 @@ export function Sidebar({
     onSelectChat,
     onNewChat,
     onDeleteChat,
-    isLoading
+    isLoading,
+    user,
+    onLogout,
 }: SidebarProps) {
     return (
         <div className="flex flex-col h-full"
@@ -163,15 +168,49 @@ export function Sidebar({
                 )}
             </div>
 
-            {/* Footer */}
+            {/* User Footer */}
             <div style={{
                 padding: '12px 16px',
                 borderTop: '1px solid rgba(255,255,255,0.06)',
-                fontSize: '11px',
-                color: '#475569',
-                textAlign: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
             }}>
-                Powered by DeepSeek
+                {user?.user_metadata?.avatar_url ? (
+                    <img
+                        src={user.user_metadata.avatar_url}
+                        alt=""
+                        style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }}
+                    />
+                ) : (
+                    <div style={{
+                        width: '28px', height: '28px', borderRadius: '50%',
+                        background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '12px', fontWeight: 600, color: '#fff', flexShrink: 0,
+                    }}>
+                        {(user?.email || 'U')[0].toUpperCase()}
+                    </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user?.user_metadata?.full_name || user?.email || 'User'}
+                    </div>
+                </div>
+                <button
+                    onClick={onLogout}
+                    title="退出登录"
+                    style={{
+                        background: 'none', border: 'none', color: '#64748b',
+                        cursor: 'pointer', padding: '4px', lineHeight: 0,
+                        transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#64748b' }}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </button>
             </div>
         </div>
     )

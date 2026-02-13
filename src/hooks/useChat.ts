@@ -1,92 +1,139 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 import { chatCompletion } from '@/lib/api'
 import { Chat, Message } from '@/types/chat'
-// Local User definition to replace Firebase User
-interface User {
-    uid: string
-    email: string | null
-    displayName: string | null
-    photoURL: string | null
-}
+import type { User } from '@supabase/supabase-js'
 
-// Mock User for local dev
-const MOCK_USER: User = {
-    uid: 'local-user',
-    email: 'local@dev.com',
-    displayName: 'Local Developer',
-    photoURL: null
-}
-
-const STORAGE_KEY = 'local_chats_v1'
+const supabase = createBrowserSupabaseClient()
 
 export function useChat() {
-    const [user] = useState<User | null>(MOCK_USER) // Always logged in as mock user
+    const [user, setUser] = useState<User | null>(null)
     const [chats, setChats] = useState<Chat[]>([])
     const [currentChatId, setCurrentChatId] = useState<string>('')
     const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState<{ type: 'error' | 'network-error', message?: string } | null>(null)
+    const [error, setError] = useState<{ type: 'error' | 'network-error'; message?: string } | null>(null)
     const [isLoadingChats, setIsLoadingChats] = useState(true)
 
-    // Load chats from LocalStorage
+    // Auth listener
     useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUser(user)
+        })
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null)
+        })
+
+        return () => subscription.unsubscribe()
+    }, [])
+
+    // Load chats from Supabase
+    const loadChats = useCallback(async () => {
+        if (!user) {
+            setChats([])
+            setCurrentChatId('')
+            setIsLoadingChats(false)
+            return
+        }
+
         setIsLoadingChats(true)
         try {
-            const stored = localStorage.getItem(STORAGE_KEY)
-            if (stored) {
-                const parsedChats = JSON.parse(stored)
-                setChats(parsedChats)
-                if (parsedChats.length > 0) {
-                    setCurrentChatId(parsedChats[0].id)
-                }
+            const { data, error: fetchError } = await supabase
+                .from('chats')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+
+            if (fetchError) throw fetchError
+
+            const loadedChats: Chat[] = (data || []).map((row: any) => ({
+                id: row.id,
+                title: row.title,
+                messages: row.messages || [],
+                createdAt: new Date(row.created_at).getTime(),
+                userId: row.user_id,
+            }))
+
+            setChats(loadedChats)
+            if (loadedChats.length > 0 && !currentChatId) {
+                setCurrentChatId(loadedChats[0].id)
             }
         } catch (err) {
-            console.error('Failed to load chats from local storage', err)
+            console.error('Failed to load chats:', err)
         } finally {
             setIsLoadingChats(false)
         }
-    }, [])
+    }, [user, currentChatId])
 
-    // Save chats to LocalStorage whenever they change
     useEffect(() => {
-        if (!isLoadingChats) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(chats))
-        }
-    }, [chats, isLoadingChats])
+        loadChats()
+    }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleNewChat = () => {
+    // Create new chat
+    const handleNewChat = async () => {
+        if (!user) return
+
+        // Reuse empty chat if exists
         const emptyChat = chats.find(chat => chat.messages.length === 0)
         if (emptyChat) {
             setCurrentChatId(emptyChat.id)
             return
         }
 
-        const newChat: Chat = {
-            id: `chat_${Date.now()}`,
-            title: 'New Chat',
-            messages: [],
-            createdAt: Date.now(),
-            userId: MOCK_USER.uid
-        }
+        try {
+            const { data, error: insertError } = await supabase
+                .from('chats')
+                .insert({ user_id: user.id, title: 'New Chat', messages: [] })
+                .select()
+                .single()
 
-        setChats(prev => [newChat, ...prev])
-        setCurrentChatId(newChat.id)
+            if (insertError) throw insertError
+
+            const newChat: Chat = {
+                id: data.id,
+                title: data.title,
+                messages: [],
+                createdAt: new Date(data.created_at).getTime(),
+                userId: data.user_id,
+            }
+
+            setChats(prev => [newChat, ...prev])
+            setCurrentChatId(newChat.id)
+        } catch (err) {
+            console.error('Create chat failed:', err)
+        }
     }
 
-    const handleDeleteChat = (chatId: string) => {
-        setChats(prev => prev.filter(c => c.id !== chatId))
-        if (chatId === currentChatId) {
-            const remaining = chats.filter(c => c.id !== chatId)
-            setCurrentChatId(remaining[0]?.id || '')
+    // Delete chat
+    const handleDeleteChat = async (chatId: string) => {
+        if (!user) return
+
+        try {
+            const { error: deleteError } = await supabase
+                .from('chats')
+                .delete()
+                .eq('id', chatId)
+
+            if (deleteError) throw deleteError
+
+            setChats(prev => prev.filter(c => c.id !== chatId))
+            if (chatId === currentChatId) {
+                const remaining = chats.filter(c => c.id !== chatId)
+                setCurrentChatId(remaining[0]?.id || '')
+            }
+        } catch (err) {
+            console.error('Delete chat failed:', err)
         }
     }
 
+    // Send message
     const handleSendMessage = async (content: string) => {
-        if (!content.trim() || isLoading || !currentChatId) return
+        if (!content.trim() || isLoading || !currentChatId || !user) return
 
         const userMessage: Message = {
             id: `user_${Date.now()}`,
             content: content.trim(),
-            role: 'user'
+            role: 'user',
         }
 
         setIsLoading(true)
@@ -95,16 +142,28 @@ export function useChat() {
         try {
             const chat = chats.find(c => c.id === currentChatId)
             const history = chat?.messages || []
-            const apiMessages = [...history.map(({ role, content }) => ({ role, content })), { role: 'user', content: content.trim() }]
+            const apiMessages = [
+                ...history.map(({ role, content }) => ({ role, content })),
+                { role: 'user', content: content.trim() },
+            ]
 
             const assistantMessageId = `assistant_${Date.now()}`
 
             // Add user message + assistant placeholder in one shot
-            setChats(prev => prev.map(c =>
-                c.id === currentChatId
-                    ? { ...c, messages: [...c.messages, userMessage, { id: assistantMessageId, role: 'assistant', content: '' }] }
-                    : c
-            ))
+            setChats(prev =>
+                prev.map(c =>
+                    c.id === currentChatId
+                        ? {
+                            ...c,
+                            messages: [
+                                ...c.messages,
+                                userMessage,
+                                { id: assistantMessageId, role: 'assistant' as const, content: '' },
+                            ],
+                        }
+                        : c
+                )
+            )
 
             const controller = new AbortController()
 
@@ -112,23 +171,27 @@ export function useChat() {
                 apiMessages.slice(-10) as any,
                 controller.signal,
                 (streamContent) => {
-                    setChats(prev => prev.map(c => {
-                        if (c.id === currentChatId) {
-                            return {
-                                ...c,
-                                messages: c.messages.map(m => m.id === assistantMessageId ? { ...m, content: streamContent } : m)
+                    setChats(prev =>
+                        prev.map(c => {
+                            if (c.id === currentChatId) {
+                                return {
+                                    ...c,
+                                    messages: c.messages.map(m =>
+                                        m.id === assistantMessageId ? { ...m, content: streamContent } : m
+                                    ),
+                                }
                             }
-                        }
-                        return c
-                    }))
+                            return c
+                        })
+                    )
                 }
             )
 
-            // Final update
+            // Build final messages
             const finalMessages = [
                 ...history,
                 userMessage,
-                { id: assistantMessageId, role: 'assistant' as const, content: response.content }
+                { id: assistantMessageId, role: 'assistant' as const, content: response.content },
             ]
 
             // Auto-title
@@ -137,10 +200,21 @@ export function useChat() {
                 newTitle = content.slice(0, 30)
             }
 
-            setChats(prev => prev.map(c =>
-                c.id === currentChatId ? { ...c, messages: finalMessages, title: newTitle || 'New Chat' } : c
-            ))
+            // Save to Supabase
+            const { error: updateError } = await supabase
+                .from('chats')
+                .update({ messages: finalMessages, title: newTitle })
+                .eq('id', currentChatId)
 
+            if (updateError) console.error('Save failed:', updateError)
+
+            setChats(prev =>
+                prev.map(c =>
+                    c.id === currentChatId
+                        ? { ...c, messages: finalMessages, title: newTitle || 'New Chat' }
+                        : c
+                )
+            )
         } catch (err) {
             console.error(err)
             setError({ type: 'error', message: err instanceof Error ? err.message : 'Unknown error' })
@@ -149,8 +223,16 @@ export function useChat() {
         }
     }
 
+    // Logout
+    const handleLogout = async () => {
+        await supabase.auth.signOut()
+        setUser(null)
+        setChats([])
+        setCurrentChatId('')
+    }
+
     return {
-        user, // Always present
+        user,
         chats,
         currentChatId,
         setCurrentChatId,
@@ -159,6 +241,7 @@ export function useChat() {
         error,
         handleNewChat,
         handleDeleteChat,
-        handleSendMessage
+        handleSendMessage,
+        handleLogout,
     }
 }
