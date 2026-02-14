@@ -29,6 +29,9 @@
 
 **Buuzzy Chat** 是一款面向开发者的全功能 AI 对话助手。内置 DeepSeek 双模型，同时支持 OpenAI / Claude / Gemini / 自定义 OpenAI 兼容端点的热切换。所有对话持久化到 Supabase，配合 Google OAuth 实现完整的用户数据隔离。
 
+如果你是新手，不知道如何构建后端逻辑，如何实现用户登录信息、用户对话储存，请见下面这篇飞书文档：
+https://cpjlrmsc.feishu.cn/docx/Cr8qdq1V1oNL89xufO0cI75Bn6b
+
 ## 🌟 核心功能
 
 ### 1. 🔐 安全认证
@@ -170,7 +173,7 @@ CREATE INDEX IF NOT EXISTS idx_chats_created_at ON public.chats(created_at DESC)
 -- 2. prompts 表 — 存储自定义 System Prompt
 -- ================================================
 CREATE TABLE IF NOT EXISTS public.prompts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id uuid PRIMARY KEY DEFAU想LT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name text NOT NULL,
   content text NOT NULL DEFAULT '',
