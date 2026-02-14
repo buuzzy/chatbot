@@ -1,21 +1,77 @@
-# Chatbot — AI 对话助手
+# Buuzzy Chat 💬
+> 基于 Next.js 15 + Supabase + DeepSeek 构建的多模型 AI 对话助手 (v0.1.0)
 
-基于 Next.js 15 + Supabase + DeepSeek API 构建的多模型 AI 聊天机器人。支持 Google OAuth 登录、多轮对话、流式输出、自定义 System Prompt，以及 OpenAI / Claude / Gemini / 自定义 API 接入。
+<div align="center">
 
-## 功能
+  <h3>你的私人多模型 AI 对话助手</h3>
+  <p>Google OAuth 登录 · 多轮持久化对话 · 流式思考链 · 多模型 API 热切换</p>
 
-| 功能 | 说明 |
-|------|------|
-| 🔐 Google OAuth 登录 | 基于 Supabase Auth，用户数据隔离 |
-| 💬 多轮对话 | 对话历史持久化到 Supabase，支持新建、重命名、删除 |
-| ⚡ 双模型切换 | DeepSeek Chat（快速）和 DeepSeek Reasoner（深度思考）|
-| 🌊 流式输出 | SSE 实时打字机效果，Reasoner 模型支持思考链展示 |
-| 📋 自定义 System Prompt | 创建、编辑、删除提示词，随时切换 |
-| 🔑 多模型 API 配置 | 支持 OpenAI / Claude / Gemini / 自定义 OpenAI 兼容端点 |
-| 📱 响应式布局 | 桌面端侧边栏 + 移动端抽屉式导航 |
-| 🎨 Markdown 渲染 | 支持代码高亮、一键复制、GFM 语法 |
+  <p>
+    <img src="https://img.shields.io/badge/Framework-Next.js_15-black?style=flat-square" alt="Next.js">
+    <img src="https://img.shields.io/badge/Language-TypeScript-3178c6?style=flat-square" alt="TypeScript">
+    <img src="https://img.shields.io/badge/Styling-Tailwind_CSS-38bdf8?style=flat-square" alt="Tailwind">
+    <img src="https://img.shields.io/badge/Auth-Supabase-3ecf8e?style=flat-square" alt="Supabase">
+    <img src="https://img.shields.io/badge/AI-DeepSeek_+_Multi--Provider-ff6b35?style=flat-square" alt="AI">
+    <img src="https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square" alt="License">
+  </p>
 
-## 技术栈
+  <p>
+    <a href="#-核心功能">核心功能</a> •
+    <a href="#-技术架构">技术架构</a> •
+    <a href="#-快速开始">快速开始</a> •
+    <a href="#-项目结构">项目结构</a> •
+    <a href="#-环境变量">环境变量</a>
+  </p>
+
+</div>
+
+---
+
+**Buuzzy Chat** 是一款面向开发者的全功能 AI 对话助手。内置 DeepSeek 双模型，同时支持 OpenAI / Claude / Gemini / 自定义 OpenAI 兼容端点的热切换。所有对话持久化到 Supabase，配合 Google OAuth 实现完整的用户数据隔离。
+
+## 🌟 核心功能
+
+### 1. 🔐 安全认证
+*   **Google OAuth 登录**：基于 Supabase Auth，开箱即用的第三方登录流程。
+*   **用户数据隔离**：所有表启用 RLS (Row Level Security)，用户只能 CRUD 自己的数据。
+
+### 2. 💬 多轮智能对话
+*   **持久化存储**：对话历史保存到 Supabase (PostgreSQL)，跨设备同步。
+*   **对话管理**：支持新建、重命名、删除对话。
+*   **流式输出**：SSE 实时打字机效果，Reasoner 模型支持思考链折叠展示。
+
+### 3. 🔑 多模型 API 热切换
+*   **内置 DeepSeek 双模型**：`deepseek-chat`（快速）和 `deepseek-reasoner`（深度思考）。
+*   **用户自定义 API**：支持 OpenAI / Claude / Gemini / 自定义 OpenAI 兼容端点。
+*   **安全存储**：用户 API Key 存储在 Supabase 中，服务端中转调用，前端不暴露密钥。
+
+### 4. 📋 自定义 System Prompt
+*   **提示词管理**：创建、编辑、删除自定义提示词。
+*   **随时切换**：在侧边栏菜单中快速切换当前会话的 System Prompt。
+
+### 5. 🎨 Markdown 渲染
+*   **代码高亮**：基于 highlight.js 的代码块语法高亮。
+*   **一键复制**：代码块顶部一键复制按钮。
+*   **GFM 语法**：完整支持 GitHub Flavored Markdown。
+
+### 6. 📱 响应式布局
+*   **桌面端**：侧边栏 + 主内容区经典布局。
+*   **移动端**：抽屉式导航，适配小屏幕设备。
+
+## 🏗️ 技术架构
+
+```mermaid
+graph TD
+    Client([浏览器客户端]) -->|OAuth / API 请求| NextJS[Next.js 15 App Router]
+    NextJS -->|认证| Supabase[(Supabase Auth + PostgreSQL)]
+    NextJS -->|内置模型| DeepSeek[DeepSeek API]
+    NextJS -->|用户自定义 API| Router{多模型路由}
+    Router -->|OpenAI / Gemini / 自定义| OpenAISDK[OpenAI SDK]
+    Router -->|Claude| Anthropic[Anthropic REST API]
+    Supabase -->|用户数据 / 对话 / 配置| NextJS
+```
+
+### 技术栈
 
 | 层级 | 技术 |
 |------|------|
@@ -27,7 +83,14 @@
 | 数据库 | Supabase (PostgreSQL) |
 | Markdown | react-markdown + remark-gfm + highlight.js |
 
-## 快速开始
+### 架构说明
+
+*   **API 安全**：DeepSeek API Key 仅在服务端使用，用户自定义 API Key 存储在 Supabase 中。
+*   **多模型路由**：服务端根据 provider 类型选择调用方式 — OpenAI/Gemini/自定义共用 OpenAI SDK，Claude 使用 Anthropic REST API。
+*   **流式响应**：统一 SSE 输出格式，区分 `reasoning`（思考链）和 `content`（正文）。
+*   **数据隔离**：所有表启用 RLS，用户只能 CRUD 自己的数据。
+
+## 🚀 快速开始
 
 ### 1. 安装依赖
 
@@ -72,6 +135,9 @@ cp .env.example .env.local
 #### 3.3 创建数据库表
 
 进入 **Supabase Dashboard → SQL Editor**，执行以下 SQL 创建所需表：
+
+<details>
+<summary>📄 点击展开完整建表 SQL</summary>
 
 ```sql
 -- ================================================
@@ -153,6 +219,8 @@ CREATE POLICY "Users can delete own api_configs" ON public.api_configs
 CREATE INDEX IF NOT EXISTS idx_api_configs_user_id ON public.api_configs(user_id);
 ```
 
+</details>
+
 > 所有表均启用了 RLS（Row Level Security），用户只能访问自己的数据。
 
 ### 4. 获取 DeepSeek API Key
@@ -166,18 +234,9 @@ CREATE INDEX IF NOT EXISTS idx_api_configs_user_id ON public.api_configs(user_id
 npm run dev
 ```
 
-访问 [http://localhost:3000](http://localhost:3000)
+访问 [http://localhost:3000](http://localhost:3000) 🎉
 
-## 环境变量
-
-| 变量名 | 必填 | 说明 |
-|--------|------|------|
-| `DEEPSEEK_API_KEY` | ✅ | DeepSeek API 密钥 |
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase 项目 URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase 匿名 Key（客户端） |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase 管理员 Key（仅服务端） |
-
-## 项目结构
+## 📁 项目结构
 
 ```
 src/
@@ -210,13 +269,58 @@ src/
     └── chat.ts                   # 类型定义
 ```
 
-## 架构说明
+## 🔧 环境变量
 
-- **API 安全**：DeepSeek API Key 仅在服务端使用，用户自定义 API Key 存储在 Supabase 中
-- **多模型路由**：服务端根据 provider 类型选择调用方式 — OpenAI/Gemini/自定义共用 OpenAI SDK，Claude 使用 Anthropic REST API
-- **流式响应**：统一 SSE 输出格式，区分 `reasoning`（思考链）和 `content`（正文）
-- **数据隔离**：所有表启用 RLS，用户只能 CRUD 自己的数据
+| 变量名 | 必填 | 说明 |
+|--------|:----:|------|
+| `DEEPSEEK_API_KEY` | ✅ | DeepSeek API 密钥 |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase 项目 URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase 匿名 Key（客户端） |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase 管理员 Key（仅服务端） |
 
-## License
+## 📝 更新日志
+
+<details>
+<summary>查看完整变更记录</summary>
+
+### 2026-02-13
+
+#### feat: 侧边栏菜单 + 多模型 API 配置
+- 侧边栏退出按钮替换为 `⋮` 菜单（配置提示词 / 配置 API / 退出）
+- 新增 ApiConfigManager Modal，支持 OpenAI / Claude / Gemini / 自定义四种供应商
+- 服务端多 provider 路由：DeepSeek (内置) + OpenAI/Gemini/自定义 (OpenAI SDK) + Claude (Anthropic REST)
+- 选中自定义 API 时隐藏 DeepSeek 模型选择器
+- 新增 `api_configs` 表 SQL + RLS
+- 输入框上方 PromptSelector 移除，入口统一到侧边栏菜单
+
+#### feat: 自定义 System Prompt 管理
+- 新增 PromptManager Modal（创建、编辑、删除、选择提示词）
+- 新增 `prompts` 表 SQL + RLS
+- 提示词内容在发消息时传给 API，替代硬编码 System Prompt
+
+#### feat: Supabase 持久化 + Google OAuth
+- 对话数据从 localStorage 迁移至 Supabase
+- 新增 Google OAuth 登录流程
+- 新增 `chats` 表 SQL + RLS + 索引
+
+#### feat: DeepSeek Reasoner 双模型
+- 支持 `deepseek-chat`（快速）和 `deepseek-reasoner`（深度思考）
+- Reasoner 思考链 SSE 分离展示，支持折叠/展开
+
+#### init: 基础 Chatbot
+- Next.js 15 + TypeScript 项目初始化
+- DeepSeek Chat API 接入 + SSE 流式输出
+- Markdown 渲染 + 代码高亮 + 一键复制
+- 响应式侧边栏 + 移动端适配
+
+</details>
+
+## 📄 License
 
 MIT
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ using Next.js, Supabase & DeepSeek</sub>
+</div>
